@@ -1,46 +1,46 @@
 import React, { useState } from 'react'
-import { AvailableModel as AvailableGeminiModel } from '../../hooks/useGemini' // ★ useGemini から型をインポート
-import { AvailableOpenAIModel } from '../../hooks/useOpenAI' // OpenAIの型をインポート
+import { useSelector, useDispatch } from 'react-redux'
+import { RootState, AppDispatch } from '../../store'
+import { setSelectedModels } from '../../store/slices/modelSlice'
+import { AvailableGeminiModel } from '../../api/geminiApi' // 正しいインポート名
+import { AvailableOpenAIModel } from '../../api/openaiApi'
 
-// ★ AiModel enum は削除
+// Props は不要になるので削除
 
-interface AiModelSelectorProps {
-  selectedModels: string[] // ★ string[] に変更
-  setSelectedModels: (models: string[]) => void // ★ string[] に変更
-  availableGeminiModels: AvailableGeminiModel[] // ★ Gemini モデルのリストを受け取る (名前変更)
-  availableOpenAIModels: AvailableOpenAIModel[] // ★ OpenAI用リストを受け取る
-  isLoadingOpenAI: boolean // ★ OpenAIモデルリスト取得中の状態
-  isLoadingGemini: boolean // ★ Geminiモデルリスト取得中の状態
-  errorOpenAI: string | null // ★ OpenAIモデルリスト取得エラー
-  errorGemini: string | null // ★ Geminiモデルリスト取得エラー
-}
+const AiModelSelector: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>()
 
-const AiModelSelector: React.FC<AiModelSelectorProps> = ({
-  selectedModels,
-  setSelectedModels,
-  availableGeminiModels, // 名前変更
-  availableOpenAIModels,
-  isLoadingOpenAI, // 名前変更
-  isLoadingGemini, // 名前変更
-  errorOpenAI, // 名前変更
-  errorGemini, // 名前変更
-}) => {
-  // 折りたたみ状態
+  // ストアからモデル関連の state を取得
+  const {
+    availableGemini,
+    availableOpenAI,
+    selected: selectedModels,
+    loadingGemini,
+    loadingOpenAI,
+    errorGemini,
+    errorOpenAI,
+  } = useSelector((state: RootState) => state.models)
+
+  // 折りたたみ状態 (ローカル UI state)
   const [isCollapsed, setIsCollapsed] = useState(false)
 
-  // モデル選択の切り替え処理
+  // モデル選択の切り替え処理 (Action を dispatch)
   const toggleModelSelection = (modelIdentifier: string) => {
+    let updatedSelectedModels: string[]
     if (selectedModels.includes(modelIdentifier)) {
-      setSelectedModels(selectedModels.filter((id) => id !== modelIdentifier))
+      updatedSelectedModels = selectedModels.filter(
+        (id: string) => id !== modelIdentifier
+      )
     } else {
-      setSelectedModels([...selectedModels, modelIdentifier])
+      updatedSelectedModels = [...selectedModels, modelIdentifier]
     }
+    dispatch(setSelectedModels(updatedSelectedModels))
   }
 
-  const isLoading = isLoadingOpenAI || isLoadingGemini // 統合ローディング状態
-  const hasError = errorOpenAI || errorGemini // エラー状態
-  const hasModels =
-    availableOpenAIModels.length > 0 || availableGeminiModels.length > 0
+  // isLoading, hasError, hasModels をストアの state から計算
+  const isLoading = loadingGemini === 'pending' || loadingOpenAI === 'pending'
+  const hasError = !!(errorOpenAI || errorGemini)
+  const hasModels = availableOpenAI.length > 0 || availableGemini.length > 0
 
   // モデルをタグ形式でレンダリングするヘルパー関数
   const renderModelTags = (
@@ -61,13 +61,11 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
               : (model as AvailableGeminiModel).displayName
           const isSelected = selectedModels.includes(identifier)
 
-          // 非選択状態のスタイル
           const nonSelectedStyle =
             prefix === 'openai:'
               ? 'bg-white text-gray-800 hover:bg-emerald-50'
               : 'bg-white text-gray-800 hover:bg-purple-50'
 
-          // 選択状態のスタイル (色を真っ黒に！)
           const selectedStyle =
             prefix === 'openai:'
               ? 'bg-white border-2 border-black text-gray-800 ring-2 ring-emerald-500'
@@ -96,7 +94,7 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
 
   return (
     <div className="mb-4 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
-      {/* ヘッダー部分 - 常に表示 */}
+      {/* ヘッダー */}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center">
           <button
@@ -117,22 +115,37 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
         </div>
       </div>
 
-      {/* 選択中のモデル表示 - 折りたたみ時に表示 */}
+      {/* 選択中モデル (折りたたみ時) */}
       {isCollapsed && selectedModels.length > 0 && (
         <div className="mb-3 py-2 px-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
           <div className="flex flex-wrap gap-1">
-            {selectedModels.map((modelId) => {
+            {selectedModels.map((modelId: string) => {
               const prefix = modelId.startsWith('openai:')
                 ? 'openai:'
                 : 'gemini:'
               const rawId = modelId.replace(/^(openai:|gemini:)/, '')
 
               let displayName = rawId
+              let modelInfo:
+                | AvailableGeminiModel
+                | AvailableOpenAIModel
+                | undefined
               if (prefix === 'gemini:') {
-                const modelInfo = availableGeminiModels.find(
-                  (m) => m.name === rawId
+                modelInfo = availableGemini.find(
+                  (m: AvailableGeminiModel) => m.name === rawId
                 )
-                if (modelInfo) displayName = modelInfo.displayName
+              } else {
+                modelInfo = availableOpenAI.find(
+                  (m: AvailableOpenAIModel) => m.id === rawId
+                )
+              }
+
+              if (modelInfo) {
+                if (prefix === 'gemini:') {
+                  displayName = (modelInfo as AvailableGeminiModel).displayName
+                } else {
+                  displayName = (modelInfo as AvailableOpenAIModel).id
+                }
               }
 
               const bgColor =
@@ -162,7 +175,7 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
         </div>
       )}
 
-      {/* メインコンテンツ - 折りたたみ状態に応じて表示/非表示 */}
+      {/* メインコンテンツ */}
       {!isCollapsed && (
         <>
           {isLoading && (
@@ -190,7 +203,7 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
           {!isLoading && !hasError && hasModels && (
             <div className="space-y-4">
               {/* OpenAI モデル */}
-              {availableOpenAIModels.length > 0 && (
+              {availableOpenAI.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -198,12 +211,12 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
                       OpenAI
                     </h3>
                   </div>
-                  {renderModelTags(availableOpenAIModels, 'openai:')}
+                  {renderModelTags(availableOpenAI, 'openai:')}
                 </div>
               )}
 
               {/* Gemini モデル */}
-              {availableGeminiModels.length > 0 && (
+              {availableGemini.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-purple-500"></div>
@@ -211,7 +224,7 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
                       Gemini
                     </h3>
                   </div>
-                  {renderModelTags(availableGeminiModels, 'gemini:')}
+                  {renderModelTags(availableGemini, 'gemini:')}
                 </div>
               )}
             </div>

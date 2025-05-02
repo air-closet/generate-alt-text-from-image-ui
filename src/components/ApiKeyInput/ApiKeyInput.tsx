@@ -1,84 +1,78 @@
-import React, { useEffect } from 'react'
+import React from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { RootState, AppDispatch } from '../../store'
+import {
+  setOpenaiKey,
+  setGeminiKey,
+  setSaveOpenai,
+  setSaveGemini,
+} from '../../store/slices/apiKeySlice'
 
 interface ApiKeyInputProps {
-  apiKey: string
-  setApiKey: (key: string) => void
-  saveApiKey: boolean
-  setSaveApiKey: (save: boolean) => void
   serviceName: string // 'OpenAI' or 'Gemini'
 }
 
-const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
-  apiKey,
-  setApiKey,
-  saveApiKey,
-  setSaveApiKey,
-  serviceName,
-}) => {
-  const localStorageKey = `${serviceName.toLowerCase()}_api_key`
+const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ serviceName }) => {
+  const dispatch = useDispatch<AppDispatch>()
+  const isGemini = serviceName === 'Gemini'
 
-  // コンポーネントマウント時にlocalStorageから読み込み
-  useEffect(() => {
-    const savedState = localStorage.getItem('save_api_key_preference')
-    const shouldLoad = savedState === 'true'
-    if (shouldLoad) {
-      const storedKey = localStorage.getItem(localStorageKey)
-      if (storedKey) {
-        setApiKey(storedKey)
-        setSaveApiKey(true) // 保存されていたらチェックボックスもONにする
-      }
-    } else {
-      setSaveApiKey(false) // 保存設定がなければチェックボックスをOFF
-    }
-  }, [localStorageKey, setApiKey, setSaveApiKey]) // 初回のみ実行
+  // ストアからキーと保存設定を取得
+  const apiKey = useSelector((state: RootState) =>
+    isGemini ? state.apiKey.geminiKey : state.apiKey.openaiKey
+  )
+  const saveApiKey = useSelector((state: RootState) =>
+    isGemini ? state.apiKey.saveGemini : state.apiKey.saveOpenai
+  )
 
-  // APIキー入力ハンドラ
+  // APIキー入力ハンドラ (Action を dispatch)
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newKey = e.target.value
-    setApiKey(newKey)
-    if (saveApiKey) {
-      localStorage.setItem(localStorageKey, newKey)
+    if (isGemini) {
+      dispatch(setGeminiKey(newKey))
+    } else {
+      dispatch(setOpenaiKey(newKey))
     }
   }
 
-  // 保存チェックボックス変更ハンドラ
+  // 保存チェックボックス変更ハンドラ (Action を dispatch)
   const handleSaveApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const shouldSave = e.target.checked
-    setSaveApiKey(shouldSave)
-    localStorage.setItem('save_api_key_preference', shouldSave.toString())
-    if (shouldSave) {
-      localStorage.setItem(localStorageKey, apiKey)
+    if (isGemini) {
+      dispatch(setSaveGemini(shouldSave))
     } else {
-      localStorage.removeItem(localStorageKey)
+      dispatch(setSaveOpenai(shouldSave))
     }
   }
+
+  const inputId = `${serviceName.toLowerCase()}ApiKey`
+  const checkboxId = `${serviceName.toLowerCase()}SaveApiKey`
 
   return (
     <div className="mb-4">
       <label
-        htmlFor={`${serviceName.toLowerCase()}ApiKey`}
+        htmlFor={inputId}
         className="block text-sm font-medium text-gray-700 mb-1"
       >
         {serviceName} APIキー
       </label>
       <input
-        type="password" // キーなのでパスワードタイプで見えにくく
-        id={`${serviceName.toLowerCase()}ApiKey`}
-        value={apiKey}
-        onChange={handleApiKeyChange}
+        type="password"
+        id={inputId}
+        value={apiKey} // ストアの値を使用
+        onChange={handleApiKeyChange} // Action を dispatch
         placeholder={`${serviceName} の API キーを入力`}
         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
       />
       <div className="mt-2 flex items-center">
         <input
-          id={`${serviceName.toLowerCase()}SaveApiKey`}
+          id={checkboxId}
           type="checkbox"
-          checked={saveApiKey}
-          onChange={handleSaveApiKeyChange}
+          checked={saveApiKey} // ストアの値を使用
+          onChange={handleSaveApiKeyChange} // Action を dispatch
           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
         <label
-          htmlFor={`${serviceName.toLowerCase()}SaveApiKey`}
+          htmlFor={checkboxId}
           className="ml-2 block text-sm text-gray-900"
         >
           APIキーをブラウザに保存する (注意: 安全ではありません)

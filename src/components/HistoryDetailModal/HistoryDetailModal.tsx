@@ -1,22 +1,9 @@
 import React from 'react'
 import Modal from 'react-modal'
-import { HistoryEntry, GenerationResult } from '../../types'
-
-// 古い形式の履歴エントリ用の型定義
-interface OldFormatHistoryEntry {
-  id: string
-  timestamp: number
-  imageDataUrl: string
-  prompt: string
-  model: string
-  generatedAltText: string
-}
-
-interface HistoryDetailModalProps {
-  isOpen: boolean
-  onRequestClose: () => void
-  entry: HistoryEntry | null
-}
+import { useSelector, useDispatch } from 'react-redux'
+import { RootState, AppDispatch } from '../../store'
+import { closeHistoryModal } from '../../store/slices/historySlice'
+import { GenerationResult, HistoryEntry } from '../../types'
 
 // モーダルのスタイル (例: 中央揃え)
 const customStyles: Modal.Styles = {
@@ -46,56 +33,41 @@ const customStyles: Modal.Styles = {
 // 通常は public/index.html の <div id="root"></div> を指定
 Modal.setAppElement('#root')
 
-const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
-  isOpen,
-  onRequestClose,
-  entry,
-}) => {
-  if (!entry) {
-    return null // エントリがなければ何も表示しない
+const HistoryDetailModal: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>()
+
+  // ストアからモーダルの表示状態と選択中のエントリIDを取得
+  const {
+    isModalOpen,
+    selectedEntryId,
+    entries: historyEntries,
+  } = useSelector((state: RootState) => state.history)
+
+  // 選択中の履歴エントリをIDから検索
+  const selectedEntry = historyEntries.find(
+    (entry: HistoryEntry) => entry.id === selectedEntryId
+  )
+
+  // モーダルを閉じるハンドラ
+  const handleRequestClose = () => {
+    dispatch(closeHistoryModal())
   }
 
-  // 古い形式の履歴エントリか新しい形式かを判定する関数
-  const isOldFormatEntry = (
-    entry: HistoryEntry | OldFormatHistoryEntry
-  ): boolean => {
-    return (
-      !('results' in entry) &&
-      typeof (entry as OldFormatHistoryEntry).model === 'string' &&
-      typeof (entry as OldFormatHistoryEntry).generatedAltText === 'string'
-    )
+  // selectedEntry が見つからない、またはモーダルが開いていない場合は何も表示しない
+  if (!selectedEntry || !isModalOpen) {
+    return null
   }
 
-  // 結果データを取得する関数 (古い形式と新しい形式の両方に対応)
-  const getResultsArray = (
-    entry: HistoryEntry | OldFormatHistoryEntry
-  ): GenerationResult[] => {
-    if (isOldFormatEntry(entry)) {
-      // 古い形式からGenerationResult配列に変換
-      const oldEntry = entry as OldFormatHistoryEntry
-      return [
-        {
-          model: oldEntry.model,
-          generatedAltText: oldEntry.generatedAltText,
-          error: null,
-        },
-      ]
-    } else {
-      // 新しい形式はそのまま返す
-      return (entry as HistoryEntry).results || []
-    }
-  }
+  // 結果データを取得 (新しい形式のみ)
+  const resultsArray = selectedEntry.results || []
 
-  // モデル結果を表示するコンポーネント
   const ModelResult = ({ result }: { result: GenerationResult }) => {
     const displayModelName = result.model.replace(/^(openai:|gemini:)/, '')
-
     return (
       <div className="border rounded-lg p-4 mb-4 bg-gray-50">
         <div className="text-md font-semibold mb-2 pb-2 border-b">
           {displayModelName}
         </div>
-
         {result.error ? (
           <div className="text-red-600 text-sm p-2 bg-red-50 rounded">
             エラー: {result.error}
@@ -109,20 +81,17 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
     )
   }
 
-  // 結果配列
-  const resultsArray = getResultsArray(entry)
-
   return (
     <Modal
-      isOpen={isOpen}
-      onRequestClose={onRequestClose}
+      isOpen={isModalOpen}
+      onRequestClose={handleRequestClose}
       style={customStyles}
       contentLabel="History Detail Modal"
     >
       <div className="relative">
         {/* 閉じるボタン */}
         <button
-          onClick={onRequestClose}
+          onClick={handleRequestClose}
           className="absolute top-0 right-0 text-gray-500 hover:text-gray-800 text-2xl font-bold p-2"
           aria-label="Close modal"
         >
@@ -136,7 +105,7 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
           {/* 画像 */}
           <div>
             <img
-              src={entry.imageDataUrl}
+              src={selectedEntry.imageDataUrl}
               alt="Selected history item"
               className="max-w-full h-auto max-h-60 object-contain rounded mx-auto mb-4" // サイズ調整
             />
@@ -146,7 +115,7 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
           <div className="text-sm text-gray-700 space-y-2">
             <div className="flex justify-between border-b pb-1">
               <span className="font-semibold">日時:</span>
-              <span>{new Date(entry.timestamp).toLocaleString()}</span>
+              <span>{new Date(selectedEntry.timestamp).toLocaleString()}</span>
             </div>
             <div className="border-b pb-1">
               <span className="font-semibold">モデル:</span>
@@ -157,13 +126,13 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
             <div>
               <span className="font-semibold block mb-1">プロンプト:</span>
               <pre className="bg-gray-100 p-3 rounded whitespace-pre-wrap break-words text-xs">
-                {entry.prompt}
+                {selectedEntry.prompt}
               </pre>
             </div>
             <div>
               <span className="font-semibold block mb-3 mt-4">生成結果:</span>
               <div className="space-y-3">
-                {resultsArray.map((result, index) => (
+                {resultsArray.map((result: GenerationResult, index: number) => (
                   <ModelResult
                     key={`${result.model}-${index}`}
                     result={result}
@@ -177,7 +146,7 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
         {/* フッター (閉じるボタン) */}
         <div className="mt-8 text-right">
           <button
-            onClick={onRequestClose}
+            onClick={handleRequestClose}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             閉じる

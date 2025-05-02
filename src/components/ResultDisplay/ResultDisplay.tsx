@@ -1,23 +1,21 @@
 import React, { useState, useCallback } from 'react'
+import { useSelector } from 'react-redux'
+import { RootState } from '../../store'
 import { GenerationResult } from '../../types'
 
-interface ResultDisplayProps {
-  results: GenerationResult[]
-  isLoading: boolean
-}
-
-const ResultDisplay: React.FC<ResultDisplayProps> = ({
-  results,
-  isLoading,
-}) => {
+const ResultDisplay: React.FC = () => {
   const [copied, setCopied] = useState<string | null>(null)
+
+  const { results, isLoading } = useSelector(
+    (state: RootState) => state.generation
+  )
 
   const handleCopy = useCallback((text: string | null, modelId: string) => {
     if (text) {
       navigator.clipboard.writeText(text).then(
         () => {
           setCopied(modelId)
-          setTimeout(() => setCopied(null), 2000) // 2秒後にメッセージを消す
+          setTimeout(() => setCopied(null), 2000)
         },
         (err) => {
           console.error('コピーに失敗しました: ', err)
@@ -31,7 +29,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
     <div className="mt-6">
       <h3 className="text-md font-semibold text-gray-700 mb-2">生成結果</h3>
       <div className="border rounded-md bg-gray-50 overflow-hidden min-h-[100px] flex flex-col justify-center">
-        {/* ローディング表示: isLoading が true の時のみ */}
+        {/* ローディング表示 */}
         {isLoading && (
           <div className="flex items-center justify-center h-[100px] bg-white/50">
             <svg
@@ -57,10 +55,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
           </div>
         )}
 
-        {/* 結果リスト表示: isLoading が false かつ results に要素がある時 */}
+        {/* 結果リスト表示 */}
         {!isLoading && results.length > 0 && (
           <div className="divide-y divide-gray-200">
-            {results.map((result, index) => {
+            {results.map((result: GenerationResult, index: number) => {
               const displayModelName = result.model.replace(
                 /^(openai:|gemini:)/,
                 ''
@@ -96,7 +94,6 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
                       {result.generatedAltText}
                     </pre>
                   ) : (
-                    // 結果が null だが表示すべき場合 (isLoading=false, results.length > 0)
                     <p className="text-sm text-gray-500 italic p-3 bg-white rounded border border-gray-200">
                       結果なし
                     </p>
