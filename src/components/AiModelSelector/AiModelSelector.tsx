@@ -95,11 +95,11 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
               ? 'bg-white border-emerald-300 text-gray-800 hover:bg-emerald-50'
               : 'bg-white border-purple-300 text-gray-800 hover:bg-purple-50'
 
-          // 選択状態のスタイル (色を最大限濃く)
+          // 選択状態のスタイル (色を真っ黒に！)
           const selectedStyle =
             prefix === 'openai:'
-              ? 'bg-white border-2 border-emerald-900 text-gray-800 ring-4 ring-emerald-100'
-              : 'bg-white border-2 border-purple-900 text-gray-800 ring-4 ring-purple-100'
+              ? 'bg-white border-2 border-black text-gray-800 ring-2 ring-emerald-200'
+              : 'bg-white border-2 border-black text-gray-800 ring-2 ring-purple-200'
 
           return (
             <button
@@ -117,7 +117,7 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
               {displayName}
               {isAdvancedGemini && <span className="text-xs ml-1">★</span>}
               {isSelected && (
-                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white border-2 border-gray-200 text-xs font-bold">
+                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white border-2 border-black text-xs font-bold">
                   ✓
                 </span>
               )}
