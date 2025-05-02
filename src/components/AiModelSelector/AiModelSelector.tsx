@@ -59,9 +59,6 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
             prefix === 'openai:'
               ? modelId
               : (model as AvailableGeminiModel).displayName
-          const isGemini = prefix === 'gemini:'
-          const isAdvancedGemini =
-            isGemini && (model as AvailableGeminiModel).isExperimentalOrPreview
           const isSelected = selectedModels.includes(identifier)
 
           // 非選択状態のスタイル
@@ -85,7 +82,6 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
               }`}
             >
               {displayName}
-              {isAdvancedGemini && <span className="text-xs ml-1">★</span>}
               {isSelected && (
                 <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white border-2 border-black text-xs font-bold">
                   ✓
