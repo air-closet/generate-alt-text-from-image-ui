@@ -13,8 +13,6 @@ interface AiModelSelectorProps {
   isLoadingGemini: boolean // ★ Geminiモデルリスト取得中の状態
   errorOpenAI: string | null // ★ OpenAIモデルリスト取得エラー
   errorGemini: string | null // ★ Geminiモデルリスト取得エラー
-  allowAdvancedModels: boolean // 追加: 高度なモデルの使用許可フラグ
-  setAllowAdvancedModels: (allow: boolean) => void // 追加: フラグ更新関数
 }
 
 const AiModelSelector: React.FC<AiModelSelectorProps> = ({
@@ -26,8 +24,6 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
   isLoadingGemini, // 名前変更
   errorOpenAI, // 名前変更
   errorGemini, // 名前変更
-  allowAdvancedModels,
-  setAllowAdvancedModels,
 }) => {
   // 折りたたみ状態
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -38,28 +34,6 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
       setSelectedModels(selectedModels.filter((id) => id !== modelIdentifier))
     } else {
       setSelectedModels([...selectedModels, modelIdentifier])
-    }
-  }
-
-  // 高度なモデル許可チェックボックスのハンドラ
-  const handleAdvancedCheckboxChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const isChecked = event.target.checked
-    setAllowAdvancedModels(isChecked)
-
-    // チェックを外したら、選択中の高度なGeminiモデルの選択を解除する
-    if (!isChecked) {
-      setSelectedModels(
-        selectedModels.filter((modelId: string) => {
-          if (!modelId.startsWith('gemini:')) return true
-          const modelName = modelId.replace(/^gemini:/, '')
-          const modelInfo = availableGeminiModels.find(
-            (m) => m.name === modelName
-          )
-          return !modelInfo?.isExperimentalOrPreview
-        })
-      )
     }
   }
 
@@ -88,7 +62,6 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
           const isGemini = prefix === 'gemini:'
           const isAdvancedGemini =
             isGemini && (model as AvailableGeminiModel).isExperimentalOrPreview
-          const isDisabled = isAdvancedGemini && !allowAdvancedModels
           const isSelected = selectedModels.includes(identifier)
 
           // 非選択状態のスタイル
@@ -106,15 +79,10 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
           return (
             <button
               key={identifier}
-              onClick={() => !isDisabled && toggleModelSelection(identifier)}
-              disabled={isDisabled}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors relative
-                ${isSelected ? selectedStyle : nonSelectedStyle} 
-                ${
-                  isDisabled
-                    ? 'opacity-40 cursor-not-allowed'
-                    : 'cursor-pointer'
-                }`}
+              onClick={() => toggleModelSelection(identifier)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors relative cursor-pointer
+                ${isSelected ? selectedStyle : nonSelectedStyle}
+              }`}
             >
               {displayName}
               {isAdvancedGemini && <span className="text-xs ml-1">★</span>}
@@ -248,24 +216,6 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
                     </h3>
                   </div>
                   {renderModelTags(availableGeminiModels, 'gemini:')}
-                </div>
-              )}
-
-              {/* 高度なモデル許可チェックボックス */}
-              {availableGeminiModels.some((m) => m.isExperimentalOrPreview) && (
-                <div className="mt-2 pt-3 border-t border-gray-200 flex items-center">
-                  <label className="inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={allowAdvancedModels}
-                      onChange={handleAdvancedCheckboxChange}
-                      className="sr-only peer"
-                    />
-                    <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
-                    <span className="ms-3 text-xs text-gray-600 font-medium">
-                      高度なモデルを許可（★印のモデル）
-                    </span>
-                  </label>
                 </div>
               )}
             </div>

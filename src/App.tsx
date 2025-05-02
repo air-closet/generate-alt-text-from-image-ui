@@ -40,7 +40,6 @@ function App() {
     AvailableOpenAIModel[]
   >([])
   const [selectedModels, setSelectedModels] = useState<string[]>([])
-  const [allowAdvancedModels, setAllowAdvancedModels] = useState(false)
 
   // ★ 結果/状態 state
   const [generationResults, setGenerationResults] = useState<
@@ -256,7 +255,8 @@ function App() {
           if (!geminiApiKey) throw new Error('Gemini API Key is not set.')
           const modelName = modelIdentifier.substring(GEMINI_PREFIX.length)
 
-          // ★ 高度なモデルのチェック (リスト再取得は cost 的に避け、state を信頼する)
+          // 高度なモデルのチェックを削除
+          /*
           const selectedGeminiInfo = availableGeminiModels.find(
             (m) => m.name === modelName
           )
@@ -266,6 +266,7 @@ function App() {
           ) {
             throw new Error('許可されていない高度なGeminiモデルです。')
           }
+          */
           // 注意: APIキー変更後に古いモデルが選択されている可能性は残る
 
           result.generatedAltText = await generateWithGemini({
@@ -407,8 +408,6 @@ function App() {
               isLoadingGemini={isLoadingGeminiModels}
               errorOpenAI={getModelErrorString(listOpenAIModelsError)}
               errorGemini={getModelErrorString(listGeminiModelsError)}
-              allowAdvancedModels={allowAdvancedModels}
-              setAllowAdvancedModels={setAllowAdvancedModels}
             />
 
             {/* 画像アップローダー */}
