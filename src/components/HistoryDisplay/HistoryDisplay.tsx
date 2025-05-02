@@ -22,6 +22,41 @@ const HistoryDisplay: React.FC<HistoryDisplayProps> = ({
     )
   }
 
+  // 古い形式の履歴エントリか新しい形式かを判定する関数
+  const isOldFormatEntry = (entry: any): boolean => {
+    return (
+      !entry.results &&
+      typeof entry.model === 'string' &&
+      typeof entry.generatedAltText === 'string'
+    )
+  }
+
+  // モデル名を表示する関数（古い形式と新しい形式の両方に対応）
+  const getModelNames = (entry: any): string => {
+    if (isOldFormatEntry(entry)) {
+      // 古い形式の場合
+      return entry.model.replace(/^(openai:|gemini:)/, '')
+    } else if (entry.results && Array.isArray(entry.results)) {
+      // 新しい形式の場合
+      return entry.results
+        .map((r: any) => r.model.replace(/^(openai:|gemini:)/, ''))
+        .join(', ')
+    }
+    return '不明なモデル' // フォールバック
+  }
+
+  // 結果の数を表示する関数（古い形式と新しい形式の両方に対応）
+  const getResultCount = (entry: any): string => {
+    if (isOldFormatEntry(entry)) {
+      // 古い形式の場合
+      return '1件'
+    } else if (entry.results && Array.isArray(entry.results)) {
+      // 新しい形式の場合
+      return `${entry.results.length}件`
+    }
+    return '0件' // フォールバック
+  }
+
   return (
     <div className="mt-8">
       <h2 className="text-xl font-semibold text-gray-800 mb-4">生成履歴</h2>
@@ -46,10 +81,7 @@ const HistoryDisplay: React.FC<HistoryDisplayProps> = ({
                 {new Date(entry.timestamp).toLocaleString()}
               </div>
               <div className="text-sm font-medium text-gray-700 mb-1 truncate">
-                モデル:{' '}
-                {entry.results
-                  .map((r) => r.model.replace(/^(openai:|gemini:)/, ''))
-                  .join(', ')}
+                モデル: {getModelNames(entry)}
               </div>
               <p
                 className="text-sm text-gray-600 mb-1 truncate"
@@ -59,7 +91,7 @@ const HistoryDisplay: React.FC<HistoryDisplayProps> = ({
               </p>
               <p className="text-sm text-gray-800 bg-gray-50 p-2 rounded truncate">
                 <span className="font-medium">結果数:</span>{' '}
-                {entry.results.length}件
+                {getResultCount(entry)}
               </p>
             </div>
             {/* アクションボタン */}

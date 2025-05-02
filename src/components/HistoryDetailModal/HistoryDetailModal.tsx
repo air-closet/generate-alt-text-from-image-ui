@@ -45,6 +45,33 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
     return null // エントリがなければ何も表示しない
   }
 
+  // 古い形式の履歴エントリか新しい形式かを判定する関数
+  const isOldFormatEntry = (entry: any): boolean => {
+    return (
+      !entry.results &&
+      typeof entry.model === 'string' &&
+      typeof entry.generatedAltText === 'string'
+    )
+  }
+
+  // 結果データを取得する関数 (古い形式と新しい形式の両方に対応)
+  const getResultsArray = (entry: any): GenerationResult[] => {
+    if (isOldFormatEntry(entry)) {
+      // 古い形式からGenerationResult配列に変換
+      return [
+        {
+          model: entry.model,
+          generatedAltText: entry.generatedAltText,
+          error: null,
+        },
+      ]
+    } else if (entry.results && Array.isArray(entry.results)) {
+      // 新しい形式はそのまま返す
+      return entry.results
+    }
+    return [] // フォールバック
+  }
+
   // モデル結果を表示するコンポーネント
   const ModelResult = ({ result }: { result: GenerationResult }) => {
     const displayModelName = result.model.replace(/^(openai:|gemini:)/, '')
@@ -67,6 +94,9 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
       </div>
     )
   }
+
+  // 結果配列
+  const resultsArray = getResultsArray(entry)
 
   return (
     <Modal
@@ -107,7 +137,7 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
             <div className="border-b pb-1">
               <span className="font-semibold">モデル:</span>
               <span className="truncate ml-1">
-                {entry.results.length}件のモデルを使用
+                {resultsArray.length}件のモデルを使用
               </span>
             </div>
             <div>
@@ -119,7 +149,7 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
             <div>
               <span className="font-semibold block mb-3 mt-4">生成結果:</span>
               <div className="space-y-3">
-                {entry.results.map((result, index) => (
+                {resultsArray.map((result, index) => (
                   <ModelResult
                     key={`${result.model}-${index}`}
                     result={result}

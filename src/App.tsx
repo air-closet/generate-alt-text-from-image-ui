@@ -351,6 +351,19 @@ function App() {
   const getModelErrorString = (error: Error | null): string | null =>
     error ? error.message : null
 
+  // 履歴をリセットするハンドラ
+  const handleResetHistory = () => {
+    if (
+      window.confirm(
+        '履歴をすべて削除してもよろしいですか？この操作は元に戻せません。'
+      )
+    ) {
+      localStorage.removeItem('altGenHistory')
+      setHistory([])
+      console.log('履歴を削除しました')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-screen-2xl mx-auto bg-white shadow-lg rounded-lg p-6">
@@ -423,6 +436,17 @@ function App() {
 
           {/* ★ 右カラム: 履歴表示 */}
           <div>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">履歴</h2>
+              {history.length > 0 && (
+                <button
+                  onClick={handleResetHistory}
+                  className="px-3 py-1 mb-4 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+                >
+                  履歴をリセット
+                </button>
+              )}
+            </div>
             <HistoryDisplay
               history={history}
               onDeleteHistoryItem={handleDeleteHistoryItem}
