@@ -58,42 +58,6 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
   const [listModelsError, setListModelsError] = useState<Error | null>(null)
   const [isLoadingModels, setIsLoadingModels] = useState(false)
 
-  // モデルごとの追加情報 (例)
-  // これはAPIレスポンスの 'name' (models/...) に基づいてキーを設定
-  const modelMetadata: Record<
-    string,
-    { isExperimentalOrPreview?: boolean /* isHighCost?: boolean */ }
-  > = {
-    'models/gemini-2.5-pro-preview-03-25': {
-      isExperimentalOrPreview: true /* isHighCost: true */,
-    },
-    'models/gemini-2.5-pro-exp-03-25': {
-      isExperimentalOrPreview: true /* isHighCost: true */,
-    },
-    'models/gemini-2.5-flash-preview-04-17': {
-      isExperimentalOrPreview: true /* isHighCost: true */,
-    },
-    'models/gemini-2.0-flash': {
-      isExperimentalOrPreview: false /* isHighCost: false */,
-    },
-    'models/gemini-2.0-flash-exp': {
-      isExperimentalOrPreview: true /* isHighCost: false */,
-    },
-    'models/gemini-1.5-pro-latest': {
-      isExperimentalOrPreview: false /* isHighCost: true */,
-    },
-    'models/gemini-1.5-pro': {
-      isExperimentalOrPreview: false /* isHighCost: true */,
-    },
-    'models/gemini-1.5-flash-latest': {
-      isExperimentalOrPreview: false /* isHighCost: false */,
-    },
-    'models/gemini-1.5-flash': {
-      isExperimentalOrPreview: false /* isHighCost: false */,
-    },
-    // APIから取得した他のモデル名も必要に応じて追加
-  }
-
   // モデルリスト取得関数 (fetch を使用)
   const listAvailableModels = useCallback(async (): Promise<
     AvailableModel[]
@@ -106,6 +70,42 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
       setListModelsError(err)
       setIsLoadingModels(false)
       return []
+    }
+
+    // モデルごとの追加情報 (例)
+    // これはAPIレスポンスの 'name' (models/...) に基づいてキーを設定
+    const modelMetadata: Record<
+      string,
+      { isExperimentalOrPreview?: boolean /* isHighCost?: boolean */ }
+    > = {
+      'models/gemini-2.5-pro-preview-03-25': {
+        isExperimentalOrPreview: true /* isHighCost: true */,
+      },
+      'models/gemini-2.5-pro-exp-03-25': {
+        isExperimentalOrPreview: true /* isHighCost: true */,
+      },
+      'models/gemini-2.5-flash-preview-04-17': {
+        isExperimentalOrPreview: true /* isHighCost: true */,
+      },
+      'models/gemini-2.0-flash': {
+        isExperimentalOrPreview: false /* isHighCost: false */,
+      },
+      'models/gemini-2.0-flash-exp': {
+        isExperimentalOrPreview: true /* isHighCost: false */,
+      },
+      'models/gemini-1.5-pro-latest': {
+        isExperimentalOrPreview: false /* isHighCost: true */,
+      },
+      'models/gemini-1.5-pro': {
+        isExperimentalOrPreview: false /* isHighCost: true */,
+      },
+      'models/gemini-1.5-flash-latest': {
+        isExperimentalOrPreview: false /* isHighCost: false */,
+      },
+      'models/gemini-1.5-flash': {
+        isExperimentalOrPreview: false /* isHighCost: false */,
+      },
+      // APIから取得した他のモデル名も必要に応じて追加
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`

@@ -2,6 +2,16 @@ import React from 'react'
 import Modal from 'react-modal'
 import { HistoryEntry, GenerationResult } from '../../types'
 
+// 古い形式の履歴エントリ用の型定義
+interface OldFormatHistoryEntry {
+  id: string
+  timestamp: number
+  imageDataUrl: string
+  prompt: string
+  model: string
+  generatedAltText: string
+}
+
 interface HistoryDetailModalProps {
   isOpen: boolean
   onRequestClose: () => void
@@ -46,30 +56,34 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
   }
 
   // 古い形式の履歴エントリか新しい形式かを判定する関数
-  const isOldFormatEntry = (entry: any): boolean => {
+  const isOldFormatEntry = (
+    entry: HistoryEntry | OldFormatHistoryEntry
+  ): boolean => {
     return (
-      !entry.results &&
-      typeof entry.model === 'string' &&
-      typeof entry.generatedAltText === 'string'
+      !('results' in entry) &&
+      typeof (entry as OldFormatHistoryEntry).model === 'string' &&
+      typeof (entry as OldFormatHistoryEntry).generatedAltText === 'string'
     )
   }
 
   // 結果データを取得する関数 (古い形式と新しい形式の両方に対応)
-  const getResultsArray = (entry: any): GenerationResult[] => {
+  const getResultsArray = (
+    entry: HistoryEntry | OldFormatHistoryEntry
+  ): GenerationResult[] => {
     if (isOldFormatEntry(entry)) {
       // 古い形式からGenerationResult配列に変換
+      const oldEntry = entry as OldFormatHistoryEntry
       return [
         {
-          model: entry.model,
-          generatedAltText: entry.generatedAltText,
+          model: oldEntry.model,
+          generatedAltText: oldEntry.generatedAltText,
           error: null,
         },
       ]
-    } else if (entry.results && Array.isArray(entry.results)) {
+    } else {
       // 新しい形式はそのまま返す
-      return entry.results
+      return (entry as HistoryEntry).results || []
     }
-    return [] // フォールバック
   }
 
   // モデル結果を表示するコンポーネント

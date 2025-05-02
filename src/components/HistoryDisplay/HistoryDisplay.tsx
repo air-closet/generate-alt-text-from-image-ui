@@ -1,5 +1,5 @@
 import React from 'react'
-import { HistoryEntry } from '../../types' // パスを修正
+import { HistoryEntry, GenerationResult } from '../../types' // パスを修正
 
 interface HistoryDisplayProps {
   history: HistoryEntry[]
@@ -7,6 +7,16 @@ interface HistoryDisplayProps {
   onShowHistoryDetails: (entry: HistoryEntry) => void
   // TODO: 将来的に履歴削除や再読み込み用の関数をPropsで受け取るかも
   // onLoadHistoryItem: (entry: HistoryEntry) => void;
+}
+
+// 古い形式の履歴エントリ用の型定義
+interface OldFormatHistoryEntry {
+  id: string
+  timestamp: number
+  imageDataUrl: string
+  prompt: string
+  model: string
+  generatedAltText: string
 }
 
 const HistoryDisplay: React.FC<HistoryDisplayProps> = ({
@@ -23,34 +33,43 @@ const HistoryDisplay: React.FC<HistoryDisplayProps> = ({
   }
 
   // 古い形式の履歴エントリか新しい形式かを判定する関数
-  const isOldFormatEntry = (entry: any): boolean => {
+  const isOldFormatEntry = (
+    entry: HistoryEntry | OldFormatHistoryEntry
+  ): boolean => {
     return (
-      !entry.results &&
-      typeof entry.model === 'string' &&
-      typeof entry.generatedAltText === 'string'
+      !('results' in entry) &&
+      typeof (entry as OldFormatHistoryEntry).model === 'string' &&
+      typeof (entry as OldFormatHistoryEntry).generatedAltText === 'string'
     )
   }
 
   // モデル名を表示する関数（古い形式と新しい形式の両方に対応）
-  const getModelNames = (entry: any): string => {
+  const getModelNames = (
+    entry: HistoryEntry | OldFormatHistoryEntry
+  ): string => {
     if (isOldFormatEntry(entry)) {
       // 古い形式の場合
-      return entry.model.replace(/^(openai:|gemini:)/, '')
-    } else if (entry.results && Array.isArray(entry.results)) {
+      return (entry as OldFormatHistoryEntry).model.replace(
+        /^(openai:|gemini:)/,
+        ''
+      )
+    } else if ('results' in entry && Array.isArray(entry.results)) {
       // 新しい形式の場合
       return entry.results
-        .map((r: any) => r.model.replace(/^(openai:|gemini:)/, ''))
+        .map((r: GenerationResult) => r.model.replace(/^(openai:|gemini:)/, ''))
         .join(', ')
     }
     return '不明なモデル' // フォールバック
   }
 
   // 結果の数を表示する関数（古い形式と新しい形式の両方に対応）
-  const getResultCount = (entry: any): string => {
+  const getResultCount = (
+    entry: HistoryEntry | OldFormatHistoryEntry
+  ): string => {
     if (isOldFormatEntry(entry)) {
       // 古い形式の場合
       return '1件'
-    } else if (entry.results && Array.isArray(entry.results)) {
+    } else if ('results' in entry && Array.isArray(entry.results)) {
       // 新しい形式の場合
       return `${entry.results.length}件`
     }

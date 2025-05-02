@@ -42,8 +42,7 @@ function App() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [allowAdvancedModels, setAllowAdvancedModels] = useState(false)
 
-  // 結果/状態 state
-  const [generatedAltText, setGeneratedAltText] = useState<string | null>(null)
+  // ★ 結果/状態 state
   const [generationResults, setGenerationResults] = useState<
     GenerationResult[]
   >([])
@@ -69,8 +68,6 @@ function App() {
   } = useOpenAI({ apiKey: openaiApiKey })
   const {
     generateAltText: generateWithGemini,
-    isLoading: isLoadingGemini,
-    error: errorGemini,
     listAvailableModels: listAvailableGeminiModels,
     isLoadingModels: isLoadingGeminiModels, // ★ フックから直接使う
     listModelsError: listGeminiModelsError, // ★ フックから直接使う
@@ -217,7 +214,6 @@ function App() {
   const handleImageUpload = (file: File, dataUrl: string) => {
     setUploadedFile(file)
     setImageDataUrl(dataUrl)
-    setGeneratedAltText(null)
     setGenerationResults([])
     setApiError(null)
     console.log('Uploaded file:', file.name)
@@ -239,7 +235,7 @@ function App() {
     setIsLoading(true)
 
     const generationPromises = selectedModels.map(async (modelIdentifier) => {
-      let result: GenerationResult = {
+      const result: GenerationResult = {
         model: modelIdentifier,
         generatedAltText: null,
         error: null,
@@ -402,36 +398,31 @@ function App() {
               />
             </div>
 
+            <AiModelSelector
+              selectedModels={selectedModels}
+              setSelectedModels={setSelectedModels}
+              availableGeminiModels={availableGeminiModels}
+              availableOpenAIModels={availableOpenAIModels}
+              isLoadingOpenAI={isLoadingOpenAIModels}
+              isLoadingGemini={isLoadingGeminiModels}
+              errorOpenAI={getModelErrorString(listOpenAIModelsError)}
+              errorGemini={getModelErrorString(listGeminiModelsError)}
+              allowAdvancedModels={allowAdvancedModels}
+              setAllowAdvancedModels={setAllowAdvancedModels}
+            />
+
             {/* 画像アップローダー */}
             <ImageUploader onImageUpload={handleImageUpload} />
 
-            {/* 設定と結果表示 */}
-            <div className="mt-6">
-              <AiModelSelector
-                selectedModels={selectedModels}
-                setSelectedModels={setSelectedModels}
-                availableGeminiModels={availableGeminiModels}
-                availableOpenAIModels={availableOpenAIModels}
-                isLoadingOpenAI={isLoadingOpenAIModels}
-                isLoadingGemini={isLoadingGeminiModels}
-                errorOpenAI={getModelErrorString(listOpenAIModelsError)}
-                errorGemini={getModelErrorString(listGeminiModelsError)}
-                allowAdvancedModels={allowAdvancedModels}
-                setAllowAdvancedModels={setAllowAdvancedModels}
-              />
-              <PromptInput prompt={prompt} setPrompt={setPrompt} />
-              <GenerateButton
-                onClick={handleGenerate}
-                isLoading={isLoading}
-                disabled={
-                  selectedModels.length === 0 || !imageDataUrl || isLoading
-                }
-              />
-              <ResultDisplay
-                results={generationResults}
-                isLoading={isLoading}
-              />
-            </div>
+            <PromptInput prompt={prompt} setPrompt={setPrompt} />
+            <GenerateButton
+              onClick={handleGenerate}
+              isLoading={isLoading}
+              disabled={
+                selectedModels.length === 0 || !imageDataUrl || isLoading
+              }
+            />
+            <ResultDisplay results={generationResults} isLoading={isLoading} />
           </div>
 
           {/* ★ 右カラム: 履歴表示 */}

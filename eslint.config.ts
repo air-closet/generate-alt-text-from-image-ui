@@ -31,8 +31,6 @@ export default tseslint.config(
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
-      pluginReact.configs.recommended,
-      pluginJsxa11y.configs.recommended,
       eslintConfigPrettier,
     ],
     settings: {

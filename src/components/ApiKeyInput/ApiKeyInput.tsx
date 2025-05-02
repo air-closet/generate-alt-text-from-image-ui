@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 
 interface ApiKeyInputProps {
   apiKey: string
@@ -30,7 +30,6 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
     } else {
       setSaveApiKey(false) // 保存設定がなければチェックボックスをOFF
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localStorageKey, setApiKey, setSaveApiKey]) // 初回のみ実行
 
   // APIキー入力ハンドラ
