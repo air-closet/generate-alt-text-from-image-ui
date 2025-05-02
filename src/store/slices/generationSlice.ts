@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { generateGeminiAltText } from '../../api/geminiApi'
 import { generateOpenAIAltText } from '../../api/openaiApi'
-import { RootState } from '../index' // RootState をインポートして getState を使えるようにする
+import { RootState } from '../index'
 import { GenerationResult } from '../../types'
 
 // --- Async Thunks ---
@@ -12,9 +12,9 @@ interface GeneratePayload {
 }
 
 export const generateAltTexts = createAsyncThunk<
-  GenerationResult[], // 成功時の戻り値
-  GeneratePayload, // 引数の型
-  { state: RootState; rejectValue: string } // ThunkAPIの型 (getState を含む)
+  GenerationResult[],
+  GeneratePayload,
+  { state: RootState; rejectValue: string }
 >(
   'generation/generateAltTexts',
   async ({ imageDataUrl, prompt }, { getState, rejectWithValue }) => {
@@ -62,16 +62,13 @@ export const generateAltTexts = createAsyncThunk<
       }
     )
 
-    // Promise.allSettled を使ってすべての結果を待つ
     const settledResults = await Promise.allSettled(generationPromises)
 
-    // 結果を GenerationResult[] 形式に整形
     const finalResults: GenerationResult[] = settledResults.map(
       (outcome, index) => {
         if (outcome.status === 'fulfilled') {
           return outcome.value
         } else {
-          // 失敗した場合でもエラー情報を含むオブジェクトを返す
           return {
             model: selectedModels[index],
             generatedAltText: null,
@@ -111,14 +108,13 @@ const generationSlice = createSlice({
       state.isLoading = false
       state.error = null
     },
-    // 他の同期アクションがあればここに追加
   },
   extraReducers: (builder) => {
     builder
       .addCase(generateAltTexts.pending, (state) => {
         state.isLoading = true
         state.error = null
-        state.results = [] // 開始時に結果をクリア
+        state.results = []
       })
       .addCase(generateAltTexts.fulfilled, (state, action) => {
         state.isLoading = false
@@ -127,9 +123,6 @@ const generationSlice = createSlice({
       .addCase(generateAltTexts.rejected, (state, action) => {
         state.isLoading = false
         state.error = action.payload ?? 'Failed to generate alt texts'
-        // エラー時でも部分的な結果が含まれている可能性があるので results はクリアしない
-        // もし action.payload に部分結果が含まれない設計ならクリアする
-        // state.results = []
       })
   },
 })

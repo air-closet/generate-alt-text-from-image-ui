@@ -9,14 +9,13 @@ import {
 } from '../../store/slices/apiKeySlice'
 
 interface ApiKeyInputProps {
-  serviceName: string // 'OpenAI' or 'Gemini'
+  serviceName: string
 }
 
 const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ serviceName }) => {
   const dispatch = useDispatch<AppDispatch>()
   const isGemini = serviceName === 'Gemini'
 
-  // ストアからキーと保存設定を取得
   const apiKey = useSelector((state: RootState) =>
     isGemini ? state.apiKey.geminiKey : state.apiKey.openaiKey
   )
@@ -24,7 +23,6 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ serviceName }) => {
     isGemini ? state.apiKey.saveGemini : state.apiKey.saveOpenai
   )
 
-  // APIキー入力ハンドラ (Action を dispatch)
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newKey = e.target.value
     if (isGemini) {
@@ -34,7 +32,6 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ serviceName }) => {
     }
   }
 
-  // 保存チェックボックス変更ハンドラ (Action を dispatch)
   const handleSaveApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const shouldSave = e.target.checked
     if (isGemini) {
@@ -58,8 +55,8 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ serviceName }) => {
       <input
         type="password"
         id={inputId}
-        value={apiKey} // ストアの値を使用
-        onChange={handleApiKeyChange} // Action を dispatch
+        value={apiKey}
+        onChange={handleApiKeyChange}
         placeholder={`${serviceName} の API キーを入力`}
         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
       />
@@ -67,8 +64,8 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ serviceName }) => {
         <input
           id={checkboxId}
           type="checkbox"
-          checked={saveApiKey} // ストアの値を使用
-          onChange={handleSaveApiKeyChange} // Action を dispatch
+          checked={saveApiKey}
+          onChange={handleSaveApiKeyChange}
           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
         <label

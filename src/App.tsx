@@ -18,7 +18,6 @@ import {
 import { resetHistory } from './store/slices/historySlice'
 
 function App() {
-  // --- Redux State Selection ---
   const dispatch = useDispatch<AppDispatch>()
   const prompt = useSelector((state: RootState) => state.prompt.value)
   const { openaiKey, geminiKey } = useSelector(
@@ -34,10 +33,9 @@ function App() {
     (state: RootState) => state.history.entries.length
   )
 
-  // --- Local UI State ---
+  // 画像データは一時的な入力なのでローカルStateで管理
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
 
-  // --- Effects ---
   useEffect(() => {
     if (openaiKey) {
       dispatch(fetchOpenAIModels(openaiKey))
@@ -50,7 +48,6 @@ function App() {
     }
   }, [geminiKey, dispatch])
 
-  // --- Event Handlers ---
   const handleImageUpload = (_file: File, dataUrl: string) => {
     setImageDataUrl(dataUrl)
     dispatch(clearGenerationState())
@@ -60,7 +57,6 @@ function App() {
   const handleGenerate = () => {
     if (!imageDataUrl) {
       console.error('Image data URL is missing')
-      // UIでユーザーにフィードバックするなら、別途ローカルstateや通知ライブラリを検討
       return
     }
     dispatch(generateAltTexts({ imageDataUrl, prompt }))
@@ -76,7 +72,6 @@ function App() {
     }
   }
 
-  // --- Derived State ---
   const isGenerateDisabled =
     selectedModels.length === 0 || !imageDataUrl || isGenerating
 
@@ -94,7 +89,6 @@ function App() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* 左カラム */}
           <div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <ApiKeyInput serviceName="OpenAI" />
@@ -111,7 +105,6 @@ function App() {
             <ResultDisplay />
           </div>
 
-          {/* 右カラム */}
           <div>
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">履歴</h2>

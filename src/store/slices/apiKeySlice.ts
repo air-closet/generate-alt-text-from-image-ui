@@ -7,7 +7,6 @@ interface ApiKeyState {
   saveGemini: boolean
 }
 
-// LocalStorage から初期値を読み込むヘルパー
 const loadInitialState = (): ApiKeyState => {
   let openaiKey = ''
   let geminiKey = ''

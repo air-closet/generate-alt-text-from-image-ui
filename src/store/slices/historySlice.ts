@@ -1,11 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { HistoryEntry } from '../../types'
-import { generateAltTexts } from './generationSlice' // generateAltTexts の完了時に履歴を追加するため
+import { generateAltTexts } from './generationSlice'
 
 interface HistoryState {
   entries: HistoryEntry[]
   isModalOpen: boolean
-  selectedEntryId: string | null // 詳細表示する履歴のID
+  selectedEntryId: string | null
 }
 
 // LocalStorage から履歴を読み込むヘルパー
@@ -56,17 +56,11 @@ const historySlice = createSlice({
   name: 'history',
   initialState,
   reducers: {
-    // 同期的な履歴追加（通常は thunk の完了時に追加するが、テスト等で使う可能性）
-    // addHistoryEntry: (state, action: PayloadAction<HistoryEntry>) => {
-    //   state.entries.unshift(action.payload) // 配列の先頭に追加
-    //   saveHistoryToLocalStorage(state.entries)
-    // },
     deleteHistoryEntry: (state, action: PayloadAction<string>) => {
       state.entries = state.entries.filter(
         (entry) => entry.id !== action.payload
       )
       saveHistoryToLocalStorage(state.entries)
-      // 削除したアイテムが詳細表示されていたらモーダルを閉じる
       if (state.selectedEntryId === action.payload) {
         state.isModalOpen = false
         state.selectedEntryId = null
@@ -95,14 +89,10 @@ const historySlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // generateAltTexts が成功したら履歴に追加
     builder.addCase(generateAltTexts.fulfilled, (state, action) => {
-      // action.meta.arg には thunk の引数 (GeneratePayload) が入る
       const payload = action.meta.arg
-      // action.payload には thunk の戻り値 (GenerationResult[]) が入る
       const results = action.payload
 
-      // 画像データがない場合は履歴に追加しない（通常は発生しないはず）
       if (!payload.imageDataUrl) return
 
       const newEntry: HistoryEntry = {
@@ -110,12 +100,11 @@ const historySlice = createSlice({
         timestamp: Date.now(),
         imageDataUrl: payload.imageDataUrl,
         prompt: payload.prompt,
-        results: results, // thunk の結果を使用
+        results: results,
       }
       state.entries.unshift(newEntry)
       saveHistoryToLocalStorage(state.entries)
     })
-    // 必要に応じて generateAltTexts.rejected 時の処理も追加できる
   },
 })
 
