@@ -5,5 +5,5 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/generate-alt-image-ui/', // GitHub Pages 用のベースパス
+  base: '/generate-alt-text-from-image-ui/', // 新しいプロジェクト名に合わせたベースパス
 })

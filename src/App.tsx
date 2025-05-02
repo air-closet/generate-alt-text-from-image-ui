@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import ImageUploader from './components/ImageUploader/ImageUploader'
 import ApiKeyInput from './components/ApiKeyInput/ApiKeyInput'
