@@ -27,13 +27,6 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
     }
   }, [])
 
-  // hasResults は結果リストの内部での表示制御にのみ使用
-  // const hasResults =
-  //   results.length > 0 && results.some((r) => r.generatedAltText)
-
-  // ローディングインジケーターの表示条件をシンプルに isLoading のみとする
-  // const shouldShowLoading = isLoading || (results.length > 0 && !hasResults)
-
   return (
     <div className="mt-6">
       <h3 className="text-md font-semibold text-gray-700 mb-2">生成結果</h3>
@@ -61,15 +54,6 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-          </div>
-        )}
-
-        {/* 「まだ結果がありません」表示: isLoading が false かつ results が空の時のみ */}
-        {!isLoading && results.length === 0 && (
-          <div className="p-4">
-            <p className="text-sm text-gray-500 text-center py-6">
-              まだ結果がありません。
-            </p>
           </div>
         )}
 
