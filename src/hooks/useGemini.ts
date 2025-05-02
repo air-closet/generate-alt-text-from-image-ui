@@ -35,10 +35,11 @@ interface ApiModelInfo {
 
 // フックが外部に返すモデル情報の型
 export interface AvailableModel {
-  name: string // generateContent に渡すモデル名 (通常 'models/' プレフィックスなし？要確認)
+  name: string // generateContent に渡すモデル名 (通常 'models/' プレフィックスなし)
   displayName: string
   description: string
   version: string
+  isExperimentalOrPreview?: boolean // 追加: プレビュー/実験的フラグ
 }
 
 interface UseGeminiProps {
@@ -55,6 +56,42 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [listModelsError, setListModelsError] = useState<Error | null>(null)
+
+  // モデルごとの追加情報 (例)
+  // これはAPIレスポンスの 'name' (models/...) に基づいてキーを設定
+  const modelMetadata: Record<
+    string,
+    { isExperimentalOrPreview?: boolean /* isHighCost?: boolean */ }
+  > = {
+    'models/gemini-2.5-pro-preview-03-25': {
+      isExperimentalOrPreview: true /* isHighCost: true */,
+    },
+    'models/gemini-2.5-pro-exp-03-25': {
+      isExperimentalOrPreview: true /* isHighCost: true */,
+    },
+    'models/gemini-2.5-flash-preview-04-17': {
+      isExperimentalOrPreview: true /* isHighCost: true */,
+    },
+    'models/gemini-2.0-flash': {
+      isExperimentalOrPreview: false /* isHighCost: false */,
+    },
+    'models/gemini-2.0-flash-exp': {
+      isExperimentalOrPreview: true /* isHighCost: false */,
+    },
+    'models/gemini-1.5-pro-latest': {
+      isExperimentalOrPreview: false /* isHighCost: true */,
+    },
+    'models/gemini-1.5-pro': {
+      isExperimentalOrPreview: false /* isHighCost: true */,
+    },
+    'models/gemini-1.5-flash-latest': {
+      isExperimentalOrPreview: false /* isHighCost: false */,
+    },
+    'models/gemini-1.5-flash': {
+      isExperimentalOrPreview: false /* isHighCost: false */,
+    },
+    // APIから取得した他のモデル名も必要に応じて追加
+  }
 
   // モデルリスト取得関数 (fetch を使用)
   const listAvailableModels = useCallback(async (): Promise<
@@ -83,30 +120,60 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
         throw new Error('Invalid response format when fetching models.')
       }
 
-      // ★ ApiModelInfo 型としてアサーション
       const allModels: ApiModelInfo[] = data.models
 
-      // フィルタリングとソート (型アサーションを安全に行う)
-      const visionModels = allModels
-        .filter(
-          (m: ApiModelInfo) =>
-            m.supportedGenerationMethods?.includes('generateContent') &&
-            (m.name?.includes('flash') ||
-              m.name?.includes('pro') ||
-              m.name?.includes('vision'))
-        )
-        .sort((a: ApiModelInfo, b: ApiModelInfo) =>
-          (a.displayName ?? '').localeCompare(b.displayName ?? '')
-        )
+      // フィルタリングとソート (generateContent対応、名前順)
+      const visionModels = allModels.filter((m: ApiModelInfo) =>
+        m.supportedGenerationMethods?.includes('generateContent')
+      )
 
-      // ★ generateContent で使うモデル名を確認 ('models/' を取るか？)
-      // ここでは一旦 'models/' を削除してみる
-      return visionModels.map((m: ApiModelInfo) => ({
-        name: m.name.replace(/^models\//, ''), // 'models/' プレフィックスを削除
-        displayName: m.displayName,
-        description: m.description,
-        version: m.version,
-      }))
+      // ★ 表示名で重複を除外する処理を追加
+      const uniqueModelsByName: ApiModelInfo[] = []
+      const seenDisplayNames = new Set<string>()
+
+      for (const model of visionModels) {
+        // visionModels は filter 後の配列
+        if (model.displayName && !seenDisplayNames.has(model.displayName)) {
+          uniqueModelsByName.push(model)
+          seenDisplayNames.add(model.displayName)
+        } else if (!model.displayName) {
+          // displayName がないモデルは念のため追加しておく (通常はないはず)
+          uniqueModelsByName.push(model)
+        }
+      }
+
+      // ★ 重複除外後のリストをソートする
+      const sortedUniqueModels = uniqueModelsByName.sort(
+        (a: ApiModelInfo, b: ApiModelInfo) =>
+          (a.displayName ?? '').localeCompare(b.displayName ?? '')
+      )
+
+      // generateContent で使うモデル名は 'models/' プレフィックスを削除し、メタデータを付与
+      return sortedUniqueModels.map((m: ApiModelInfo) => {
+        // ★ sortedUniqueModels を使う
+        const metadata = modelMetadata[m.name] ?? {} // APIレスポンスの name でメタデータを検索
+        // プレビュー/実験フラグ判定 (メタデータ優先、なければ名前に含むか)
+        const isExpOrPreview =
+          metadata.isExperimentalOrPreview ??
+          m.name.includes('preview') ??
+          m.name.includes('exp')
+        // 高コストフラグ判定は削除
+        /*
+        const isCostly =
+          metadata.isHighCost ??
+          ((m.name.includes('pro') && !m.name.includes('flash')) ||
+            m.name.includes('2.5'))
+        */
+
+        return {
+          name: m.name.replace(/^models\//, ''), // 'models/' プレフィックスを削除
+          displayName: m.displayName,
+          description: m.description,
+          version: m.version,
+          isExperimentalOrPreview: isExpOrPreview,
+          // isHighCost: isCostly, // 削除
+        }
+      })
     } catch (err) {
       console.error('Error listing Gemini models via REST:', err)
       const fetchError =
@@ -120,7 +187,7 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
     async ({
       prompt,
       imageDataUrl,
-      model, // ★ generateContent に渡すモデル名 (上記 listModels で 'models/' を削除したので、そのまま渡せるはず)
+      model,
     }: GenerateAltTextOptions): Promise<string | null> => {
       setIsLoading(true)
       setError(null)
@@ -132,9 +199,35 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
 
       try {
         const genAI = new GoogleGenerativeAI(apiKey)
-        // ★ モデル名をそのまま渡す
-        const generativeModel = genAI.getGenerativeModel({ model: model })
+
+        // セーフティ設定をここに移動
+        const safetySettings = [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+        ]
+
+        // getGenerativeModel に safetySettings を渡す
+        const generativeModel = genAI.getGenerativeModel({
+          model: model,
+          safetySettings,
+        })
         const imagePart = fileToGenerativePart(imageDataUrl)
+
+        // generateContent の呼び出しをシンプルにする
         const result = await generativeModel.generateContent([
           prompt,
           imagePart,

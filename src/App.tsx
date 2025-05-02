@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import ImageUploader from './components/ImageUploader/ImageUploader'
 import ApiKeyInput from './components/ApiKeyInput/ApiKeyInput'
-import AiModelSelector, {
-  AiModel,
-} from './components/AiModelSelector/AiModelSelector'
+import AiModelSelector /* AiModel 型は削除 */ from './components/AiModelSelector/AiModelSelector'
 import PromptInput from './components/PromptInput/PromptInput'
 import GenerateButton from './components/GenerateButton/GenerateButton'
 import ResultDisplay from './components/ResultDisplay/ResultDisplay'
-// import useOpenAI from './hooks/useOpenAI' // OpenAI用フック (一旦コメントアウト)
-import useGemini, { AvailableModel } from './hooks/useGemini' // AvailableModel 型をインポート
+import useOpenAI from './hooks/useOpenAI' // ★ OpenAI フックをインポート
+import useGemini, { AvailableModel } from './hooks/useGemini' // ★ Gemini フックをインポート
 import './App.css'
 
 function App() {
@@ -25,30 +23,35 @@ function App() {
     'この画像のaltテキストを生成してください。\nその際は<generated-alt-text>タグで囲んで出力してください。\n\n# 出力例\n<generated-alt-text>\n美しい女性のビューティーポートレート\n</generated-alt-text>'
   )
 
-  // ★ モデル関連 state
+  // ★ モデル関連 state (元に戻す)
   const [availableGeminiModels, setAvailableGeminiModels] = useState<
     AvailableModel[]
   >([])
-  const [selectedModel, setSelectedModel] = useState<AiModel | string>('') // 初期値は空に
+  const [selectedModel, setSelectedModel] = useState<string>('') // ★ string 型のみに
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [modelFetchError, setModelFetchError] = useState<string | null>(null)
+  const [allowAdvancedModels, setAllowAdvancedModels] = useState(false)
 
   // 結果/状態 state
   const [generatedAltText, setGeneratedAltText] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  // カスタムフックの準備
-  // const { generateAltText: generateWithOpenAI, isLoading: isLoadingOpenAI, error: errorOpenAI } = useOpenAI({ apiKey: openaiApiKey }) // 一旦コメントアウト
+  // ★ カスタムフックの準備 (元に戻す)
+  const {
+    generateAltText: generateWithOpenAI,
+    isLoading: isLoadingOpenAI,
+    error: errorOpenAI,
+  } = useOpenAI({ apiKey: openaiApiKey })
   const {
     generateAltText: generateWithGemini,
     isLoading: isLoadingGemini,
     error: errorGemini,
-    listAvailableModels, // モデルリスト取得関数を取得
+    listAvailableModels,
     listModelsError,
   } = useGemini({ apiKey: geminiApiKey })
 
-  // Gemini API キーが変更されたらモデルリストを再取得
+  // ★ Gemini API キーが変更されたらモデルリストを再取得 (元に戻す)
   useEffect(() => {
     const fetchModels = async () => {
       if (geminiApiKey) {
@@ -76,7 +79,7 @@ function App() {
     fetchModels()
   }, [geminiApiKey, listAvailableModels])
 
-  // listModels のエラーを監視
+  // ★ listModels のエラーを監視 (元に戻す)
   useEffect(() => {
     if (listModelsError) {
       setModelFetchError(
@@ -85,24 +88,29 @@ function App() {
     }
   }, [listModelsError])
 
-  // 生成APIのローディング/エラー状態を監視
+  // ★ 生成APIのローディング/エラー状態を監視 (元に戻す)
   useEffect(() => {
-    // selectedModel が availableGeminiModels に含まれる場合のみ Gemini の状態を見る
     const isGeminiSelected = availableGeminiModels.some(
-      (m) => m.name === selectedModel
+      (m: AvailableModel) => m.name === selectedModel
     )
     if (selectedModel === 'openai') {
-      setIsLoading(false)
-      setApiError(null)
+      setIsLoading(isLoadingOpenAI)
+      setApiError(errorOpenAI ? errorOpenAI.message : null)
     } else if (isGeminiSelected) {
       setIsLoading(isLoadingGemini)
       setApiError(errorGemini ? errorGemini.message : null)
     } else {
-      // モデルが選択されていない、またはリストにない場合
       setIsLoading(false)
-      // setApiError(null) // 既存のエラーは残しても良いかも？
+      // setApiError(null) // 必要に応じてエラーをクリア
     }
-  }, [selectedModel, isLoadingGemini, errorGemini, availableGeminiModels])
+  }, [
+    selectedModel,
+    isLoadingOpenAI,
+    errorOpenAI,
+    isLoadingGemini,
+    errorGemini,
+    availableGeminiModels,
+  ])
 
   const handleImageUpload = (file: File, dataUrl: string) => {
     setUploadedFile(file)
@@ -112,11 +120,12 @@ function App() {
     console.log('Uploaded file:', file.name)
   }
 
-  // ★ APIキー取得ロジックを単純化 (選択されたモデルが OpenAI かどうかで判断)
+  // ★ APIキー取得ロジック (元に戻す)
   const getCurrentApiKey = () => {
     return selectedModel === 'openai' ? openaiApiKey : geminiApiKey
   }
 
+  // ★ handleGenerate 関数 (元に戻す)
   const handleGenerate = async () => {
     if (!uploadedFile || !imageDataUrl) {
       setApiError('画像をアップロードしてください。')
@@ -128,19 +137,22 @@ function App() {
       setApiError(`${serviceName} の API キーを入力してください。`)
       return
     }
-    // 選択されたモデルがリストに存在するか確認
+
     const selectedModelInfo = availableGeminiModels.find(
       (m) => m.name === selectedModel
     )
+    const isGemini = selectedModelInfo !== undefined
 
-    // ★ 実行確認ロジックを更新 (モデル名に 'pro' が含まれるかで判断)
-    const needsConfirmation = selectedModel.includes('pro') // 'pro' を含むモデル名なら確認
-    if (needsConfirmation) {
-      const displayName = selectedModelInfo?.displayName ?? selectedModel // 表示名があれば使う
-      const confirmationMessage = `モデル「${displayName}」は従量課金の可能性があります。実行しますか？`
-      if (!window.confirm(confirmationMessage)) {
-        return
-      }
+    // ★ 実行確認ロジックを修正: プレビュー/実験的モデルで、許可チェックがない場合に警告(本来はボタンが無効化されるはずだが念のため)
+    if (
+      isGemini &&
+      selectedModelInfo?.isExperimentalOrPreview &&
+      !allowAdvancedModels
+    ) {
+      setApiError(
+        '許可されていない高度なモデルが選択されています。チェックボックスをオンにしてください。'
+      )
+      return // ボタンが無効ならここには来ないはずだけど、保険
     }
 
     setApiError(null)
@@ -149,16 +161,14 @@ function App() {
     try {
       let altText: string | null = null
       if (selectedModel === 'openai') {
-        // altText = await generateWithOpenAI({ prompt, imageDataUrl })
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        altText = `OpenAI API はまだ実装されていません (File: ${uploadedFile?.name ?? 'N/A'})`
-        console.warn('OpenAI API call is not implemented yet.')
-      } else if (selectedModelInfo) {
-        // Gemini系で選択されたモデルが存在する場合
+        // ★ generateWithOpenAI を呼び出す
+        altText = await generateWithOpenAI({ prompt, imageDataUrl })
+      } else if (isGemini) {
+        // ★ generateWithGemini を呼び出す
         altText = await generateWithGemini({
           prompt,
           imageDataUrl,
-          model: selectedModel, // ★ プレフィックスなしのモデル名を渡す
+          model: selectedModel,
         })
       } else {
         setApiError('有効なモデルが選択されていません。')
@@ -169,6 +179,7 @@ function App() {
         setGeneratedAltText(altText)
         // TODO: 履歴保存処理
       } else {
+        // 各フック内でエラーがセットされるはずだが、念のため
         if (!apiError) {
           setApiError('AIからの応答がありませんでした。')
         }
@@ -188,13 +199,11 @@ function App() {
           画像Altテキスト生成UI
         </h1>
 
-        {/* モデル取得エラー表示 */}
         {modelFetchError && (
           <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
             <p>{modelFetchError}</p>
           </div>
         )}
-        {/* APIエラー表示 */}
         {apiError && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             <p>{apiError}</p>
@@ -202,7 +211,6 @@ function App() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 左側: 画像アップローダー */}
           <div>
             <h2 className="text-lg font-semibold text-gray-700 mb-2">
               1. 画像をアップロード
@@ -210,12 +218,10 @@ function App() {
             <ImageUploader onImageUpload={handleImageUpload} />
           </div>
 
-          {/* 右側: 設定と結果 */}
           <div>
             <h2 className="text-lg font-semibold text-gray-700 mb-2">
               2. 設定 & 生成
             </h2>
-
             <ApiKeyInput
               apiKey={openaiApiKey}
               setApiKey={setOpenaiApiKey}
@@ -231,13 +237,14 @@ function App() {
               serviceName="Gemini"
             />
 
-            {/* ★ AiModelSelector に動的リストと状態を渡す */}
             <AiModelSelector
               selectedModel={selectedModel}
               setSelectedModel={setSelectedModel}
-              availableModels={availableGeminiModels} // 利用可能なモデルリストを渡す
+              availableModels={availableGeminiModels} // 利用可能な Gemini モデルリスト
               isLoading={isLoadingModels} // モデルリスト取得中か
               error={modelFetchError} // モデルリスト取得エラー
+              allowAdvancedModels={allowAdvancedModels}
+              setAllowAdvancedModels={setAllowAdvancedModels}
             />
 
             <PromptInput prompt={prompt} setPrompt={setPrompt} />
@@ -249,7 +256,9 @@ function App() {
                 !uploadedFile ||
                 isLoading ||
                 !selectedModel ||
-                availableGeminiModels.length === 0
+                (selectedModel !== 'openai' &&
+                  availableGeminiModels.length === 0 &&
+                  !isLoadingModels)
               }
             />
 

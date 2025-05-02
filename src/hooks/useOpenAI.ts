@@ -1,14 +1,6 @@
-import OpenAI from 'openai'
 import { useState, useCallback } from 'react'
 
-// APIレスポンスからaltテキストを抽出するヘルパー関数 (仮)
-// 実際のレスポンス構造に合わせて調整が必要
-const extractAltText = (
-  response: OpenAI.Chat.Completions.ChatCompletion
-): string | null => {
-  // シンプルに最初の choices の message content を返す想定
-  return response.choices[0]?.message?.content ?? null
-}
+// import OpenAI from 'openai'; // 必要になったらインポート
 
 interface UseOpenAIProps {
   apiKey: string
@@ -16,9 +8,8 @@ interface UseOpenAIProps {
 
 interface GenerateAltTextOptions {
   prompt: string
-  imageDataUrl: string
-  model?: string // デフォルトは gpt-4-vision-preview
-  maxTokens?: number
+  imageDataUrl: string // Base64 Data URL
+  // model: string; // 必要に応じてモデル指定を追加
 }
 
 const useOpenAI = ({ apiKey }: UseOpenAIProps) => {
@@ -29,8 +20,6 @@ const useOpenAI = ({ apiKey }: UseOpenAIProps) => {
     async ({
       prompt,
       imageDataUrl,
-      model = 'gpt-4-vision-preview',
-      maxTokens = 100,
     }: GenerateAltTextOptions): Promise<string | null> => {
       setIsLoading(true)
       setError(null)
@@ -41,47 +30,50 @@ const useOpenAI = ({ apiKey }: UseOpenAIProps) => {
         return null
       }
 
-      // Data URL から base64 部分を削除 (OpenAI API は URL 形式をそのまま受け付けるため)
-      // const base64Image = imageDataUrl.split(','')[1];
+      console.log('OpenAI Hook - Prompt:', prompt)
+      console.log(
+        'OpenAI Hook - Image Data URL (length):',
+        imageDataUrl?.length
+      )
 
-      const openai = new OpenAI({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true, // ブラウザからの呼び出しを許可 (本来は非推奨)
-      })
+      // --- OpenAI API 呼び出し実装 (TODO) ---
+      // const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+      // try {
+      //   const response = await openai.chat.completions.create({
+      //     model: "gpt-4o", // または他のvision対応モデル
+      //     messages: [
+      //       {
+      //         role: "user",
+      //         content: [
+      //           { type: "text", text: prompt },
+      //           {
+      //             type: "image_url",
+      //             image_url: {
+      //               url: imageDataUrl,
+      //             },
+      //           },
+      //         ],
+      //       },
+      //     ],
+      //     max_tokens: 300,
+      //   });
+      //   const altText = response.choices[0]?.message?.content;
+      //   setIsLoading(false);
+      //   return altText || null;
+      // } catch (err) {
+      //   console.error('OpenAI API Error:', err);
+      //   setError(err instanceof Error ? err : new Error('Unknown OpenAI API error'));
+      //   setIsLoading(false);
+      //   return null;
+      // }
+      // --- ここまで TODO ---
 
-      try {
-        const response = await openai.chat.completions.create({
-          model: model,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    // base64よりURL形式の方が推奨されている
-                    url: imageDataUrl,
-                  },
-                },
-              ],
-            },
-          ],
-          max_tokens: maxTokens,
-        })
-
-        console.log('OpenAI API Response:', response)
-        const altText = extractAltText(response)
-        setIsLoading(false)
-        return altText
-      } catch (err) {
-        console.error('OpenAI API Error:', err)
-        setError(
-          err instanceof Error ? err : new Error('Unknown OpenAI API error')
-        )
-        setIsLoading(false)
-        return null
-      }
+      // ダミーの応答 (仮)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const dummyText = `(OpenAI 仮実装) ${prompt.substring(0, 20)}...`
+      setIsLoading(false)
+      // setError(new Error('OpenAI API is not implemented yet.')); // 必要ならエラー表示
+      return dummyText
     },
     [apiKey]
   )

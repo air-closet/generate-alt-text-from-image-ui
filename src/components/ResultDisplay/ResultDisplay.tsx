@@ -26,9 +26,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
   return (
     <div className="mt-6">
       <h3 className="text-md font-semibold text-gray-700 mb-2">生成結果</h3>
-      <div className="relative p-4 border rounded-md bg-gray-50 min-h-[100px]">
+      <div className="p-4 border rounded-md bg-gray-50 min-h-[100px]">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+          <div className="flex items-center justify-center h-[80px]">
             <svg
               className="animate-spin h-8 w-8 text-blue-600"
               xmlns="http://www.w3.org/2000/svg"
@@ -63,13 +63,17 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
           )
         )}
         {result && (
-          <button
-            onClick={handleCopy}
-            className={`absolute top-2 right-2 px-2 py-1 rounded text-xs transition-colors duration-150 ${copied ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-            aria-label={copied ? 'コピーしました' : '結果をコピー'}
-          >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={handleCopy}
+              className={`px-3 py-1 rounded text-sm transition-colors duration-150 border border-red-700 hover:bg-red-700 shadow-md ${
+                copied ? 'bg-green-500 border-green-600' : ''
+              }`}
+              aria-label={copied ? 'コピーしました' : '結果をコピー'}
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
         )}
       </div>
     </div>
