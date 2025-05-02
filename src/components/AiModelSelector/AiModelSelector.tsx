@@ -89,24 +89,25 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
           const isDisabled = isAdvancedGemini && !allowAdvancedModels
           const isSelected = selectedModels.includes(identifier)
 
-          const brandColor =
+          // 非選択状態のスタイル
+          const nonSelectedStyle =
             prefix === 'openai:'
-              ? 'bg-emerald-100 border-emerald-300 hover:bg-emerald-200'
-              : 'bg-purple-100 border-purple-300 hover:bg-purple-200'
+              ? 'bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-50'
+              : 'bg-white border-purple-300 text-purple-800 hover:bg-purple-50'
 
-          const selectedStyle = isSelected
-            ? prefix === 'openai:'
-              ? 'bg-emerald-500 text-white hover:bg-emerald-600 border-emerald-600'
-              : 'bg-purple-500 text-white hover:bg-purple-600 border-purple-600'
-            : brandColor
+          // 選択状態のスタイル
+          const selectedStyle =
+            prefix === 'openai:'
+              ? 'bg-white border-2 border-emerald-500 text-emerald-800 ring-2 ring-emerald-200'
+              : 'bg-white border-2 border-purple-500 text-purple-800 ring-2 ring-purple-200'
 
           return (
             <button
               key={identifier}
               onClick={() => !isDisabled && toggleModelSelection(identifier)}
               disabled={isDisabled}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors 
-                ${selectedStyle} 
+              className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors relative
+                ${isSelected ? selectedStyle : nonSelectedStyle} 
                 ${
                   isDisabled
                     ? 'opacity-40 cursor-not-allowed'
@@ -115,6 +116,11 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
             >
               {displayName}
               {isAdvancedGemini && <span className="text-xs ml-1">★</span>}
+              {isSelected && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-50 border border-gray-200 text-xs">
+                  ✓
+                </span>
+              )}
             </button>
           )
         })}
