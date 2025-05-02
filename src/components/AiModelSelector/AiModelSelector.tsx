@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { AvailableModel as AvailableGeminiModel } from '../../hooks/useGemini' // ★ useGemini から型をインポート
 import { AvailableOpenAIModel } from '../../hooks/useOpenAI' // OpenAIの型をインポート
 import { HistoryEntry, GenerationResult } from '../../types' // ★ GenerationResult もインポート
@@ -30,6 +30,9 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
   allowAdvancedModels,
   setAllowAdvancedModels,
 }) => {
+  // 折りたたみ状態
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
   // モデル選択の切り替え処理
   const toggleModelSelection = (modelIdentifier: string) => {
     if (selectedModels.includes(modelIdentifier)) {
@@ -66,6 +69,43 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
   const hasModels =
     availableOpenAIModels.length > 0 || availableGeminiModels.length > 0
 
+  // 選択中のモデル名を取得する関数
+  const getSelectedModelNames = () => {
+    if (selectedModels.length === 0) return '選択なし'
+
+    return selectedModels
+      .map((modelId) => {
+        const prefix = modelId.startsWith('openai:') ? 'openai:' : 'gemini:'
+        const rawId = modelId.replace(/^(openai:|gemini:)/, '')
+
+        if (prefix === 'openai:') {
+          return rawId
+        } else {
+          const modelInfo = availableGeminiModels.find((m) => m.name === rawId)
+          return modelInfo ? modelInfo.displayName : rawId
+        }
+      })
+      .join(', ')
+  }
+
+  // 選択中のモデル数と種類（OpenAI/Gemini）の情報を作成
+  const getSelectedModelsSummary = () => {
+    if (selectedModels.length === 0) return '選択なし'
+
+    const openaiCount = selectedModels.filter((id) =>
+      id.startsWith('openai:')
+    ).length
+    const geminiCount = selectedModels.filter((id) =>
+      id.startsWith('gemini:')
+    ).length
+
+    const parts = []
+    if (openaiCount > 0) parts.push(`OpenAI: ${openaiCount}`)
+    if (geminiCount > 0) parts.push(`Gemini: ${geminiCount}`)
+
+    return parts.join(', ')
+  }
+
   // モデルをタグ形式でレンダリングするヘルパー関数
   const renderModelTags = (
     models: Array<AvailableOpenAIModel | AvailableGeminiModel>,
@@ -92,14 +132,14 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
           // 非選択状態のスタイル
           const nonSelectedStyle =
             prefix === 'openai:'
-              ? 'bg-white border-emerald-300 text-gray-800 hover:bg-emerald-50'
-              : 'bg-white border-purple-300 text-gray-800 hover:bg-purple-50'
+              ? 'bg-white text-gray-800 hover:bg-emerald-50'
+              : 'bg-white text-gray-800 hover:bg-purple-50'
 
           // 選択状態のスタイル (色を真っ黒に！)
           const selectedStyle =
             prefix === 'openai:'
-              ? 'bg-white border-2 border-black text-gray-800 ring-2 ring-emerald-200'
-              : 'bg-white border-2 border-black text-gray-800 ring-2 ring-purple-200'
+              ? 'bg-white border-2 border-black text-gray-800 ring-2 ring-emerald-500'
+              : 'bg-white border-2 border-black text-gray-800 ring-2 ring-purple-500'
 
           return (
             <button
@@ -130,79 +170,145 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
 
   return (
     <div className="mb-4 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
+      {/* ヘッダー部分 - 常に表示 */}
       <div className="flex justify-between items-center mb-3">
-        <label className="text-md font-semibold text-gray-700">
-          比較したいAIモデルを選択
-        </label>
-        <div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
-          {selectedModels.length}個選択中
+        <div className="flex items-center">
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+            aria-label={isCollapsed ? '展開' : '折りたたむ'}
+          >
+            <span className="text-xl">{isCollapsed ? '▶' : '▼'}</span>
+          </button>
+          <label className="text-md font-semibold text-gray-700">
+            比較したいAIモデルを選択
+          </label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
+            {selectedModels.length}個選択中
+          </div>
         </div>
       </div>
 
-      {isLoading && (
-        <div className="flex items-center py-4 justify-center">
-          <div className="animate-spin h-5 w-5 border-2 border-indigo-500 rounded-full border-t-transparent"></div>
-          <p className="ml-2 text-sm text-gray-500">
-            モデルリストを読み込み中...
-          </p>
-        </div>
-      )}
+      {/* 選択中のモデル表示 - 折りたたみ時に表示 */}
+      {isCollapsed && selectedModels.length > 0 && (
+        <div className="mb-3 py-2 px-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
+          <div className="flex flex-wrap gap-1">
+            {selectedModels.map((modelId) => {
+              const prefix = modelId.startsWith('openai:')
+                ? 'openai:'
+                : 'gemini:'
+              const rawId = modelId.replace(/^(openai:|gemini:)/, '')
 
-      {hasError && (
-        <div className="text-sm text-red-600 space-y-1 bg-red-50 p-3 rounded">
-          {errorOpenAI && <p>OpenAIモデル取得エラー: {errorOpenAI}</p>}
-          {errorGemini && <p>Geminiモデル取得エラー: {errorGemini}</p>}
-        </div>
-      )}
+              let displayName = rawId
+              if (prefix === 'gemini:') {
+                const modelInfo = availableGeminiModels.find(
+                  (m) => m.name === rawId
+                )
+                if (modelInfo) displayName = modelInfo.displayName
+              }
 
-      {!isLoading && !hasError && !hasModels && (
-        <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded">
-          利用可能なモデルがありません。APIキーを確認してください。
-        </div>
-      )}
+              const bgColor =
+                prefix === 'openai:' ? 'bg-emerald-100' : 'bg-purple-100'
+              const textColor =
+                prefix === 'openai:' ? 'text-emerald-800' : 'text-purple-800'
 
-      {!isLoading && !hasError && hasModels && (
-        <div className="space-y-4">
-          {/* OpenAI モデル */}
-          {availableOpenAIModels.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <h3 className="text-sm font-medium text-gray-600">OpenAI</h3>
-              </div>
-              {renderModelTags(availableOpenAIModels, 'openai:')}
-            </div>
-          )}
-
-          {/* Gemini モデル */}
-          {availableGeminiModels.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                <h3 className="text-sm font-medium text-gray-600">Gemini</h3>
-              </div>
-              {renderModelTags(availableGeminiModels, 'gemini:')}
-            </div>
-          )}
-
-          {/* 高度なモデル許可チェックボックス */}
-          {availableGeminiModels.some((m) => m.isExperimentalOrPreview) && (
-            <div className="mt-2 pt-3 border-t border-gray-200 flex items-center">
-              <label className="inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={allowAdvancedModels}
-                  onChange={handleAdvancedCheckboxChange}
-                  className="sr-only peer"
-                />
-                <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
-                <span className="ms-3 text-xs text-gray-600 font-medium">
-                  高度なモデルを許可（★印のモデル）
+              return (
+                <span
+                  key={modelId}
+                  className={`${bgColor} ${textColor} text-xs px-2 py-1 rounded-full inline-flex items-center`}
+                >
+                  {displayName}
+                  <button
+                    className="ml-1 text-gray-500 hover:text-gray-700"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleModelSelection(modelId)
+                    }}
+                  >
+                    ×
+                  </button>
                 </span>
-              </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* メインコンテンツ - 折りたたみ状態に応じて表示/非表示 */}
+      {!isCollapsed && (
+        <>
+          {isLoading && (
+            <div className="flex items-center py-4 justify-center">
+              <div className="animate-spin h-5 w-5 border-2 border-indigo-500 rounded-full border-t-transparent"></div>
+              <p className="ml-2 text-sm text-gray-500">
+                モデルリストを読み込み中...
+              </p>
             </div>
           )}
-        </div>
+
+          {hasError && (
+            <div className="text-sm text-red-600 space-y-1 bg-red-50 p-3 rounded">
+              {errorOpenAI && <p>OpenAIモデル取得エラー: {errorOpenAI}</p>}
+              {errorGemini && <p>Geminiモデル取得エラー: {errorGemini}</p>}
+            </div>
+          )}
+
+          {!isLoading && !hasError && !hasModels && (
+            <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded">
+              利用可能なモデルがありません。APIキーを確認してください。
+            </div>
+          )}
+
+          {!isLoading && !hasError && hasModels && (
+            <div className="space-y-4">
+              {/* OpenAI モデル */}
+              {availableOpenAIModels.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <h3 className="text-sm font-medium text-gray-600">
+                      OpenAI
+                    </h3>
+                  </div>
+                  {renderModelTags(availableOpenAIModels, 'openai:')}
+                </div>
+              )}
+
+              {/* Gemini モデル */}
+              {availableGeminiModels.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                    <h3 className="text-sm font-medium text-gray-600">
+                      Gemini
+                    </h3>
+                  </div>
+                  {renderModelTags(availableGeminiModels, 'gemini:')}
+                </div>
+              )}
+
+              {/* 高度なモデル許可チェックボックス */}
+              {availableGeminiModels.some((m) => m.isExperimentalOrPreview) && (
+                <div className="mt-2 pt-3 border-t border-gray-200 flex items-center">
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowAdvancedModels}
+                      onChange={handleAdvancedCheckboxChange}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
+                    <span className="ms-3 text-xs text-gray-600 font-medium">
+                      高度なモデルを許可（★印のモデル）
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
