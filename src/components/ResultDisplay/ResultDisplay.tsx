@@ -30,11 +30,14 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
   const hasResults =
     results.length > 0 && results.some((r) => r.generatedAltText)
 
+  // 結果がロード中もしくはまだ表示されていない場合に表示するローディングインジケーター
+  const shouldShowLoading = isLoading || (results.length > 0 && !hasResults)
+
   return (
     <div className="mt-6">
       <h3 className="text-md font-semibold text-gray-700 mb-2">生成結果</h3>
       <div className="border rounded-md bg-gray-50 overflow-hidden">
-        {isLoading && (
+        {shouldShowLoading && (
           <div className="flex items-center justify-center h-[100px] bg-white/50">
             <svg
               className="animate-spin h-8 w-8 text-blue-600"
@@ -59,7 +62,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
           </div>
         )}
 
-        {!isLoading && !hasResults && (
+        {!shouldShowLoading && !hasResults && (
           <div className="p-4">
             <p className="text-sm text-gray-500 text-center py-6">
               まだ結果がありません。
