@@ -1,0 +1,9 @@
+pre-commit:
+  parallel: true
+  commands:
+    eslint:
+      glob: '*.{js,ts,jsx,tsx}'
+      run: npm run lint:files -- {staged_files}
+    prettier:
+      glob: '*.{js,ts,jsx,tsx,css,md,html,json}'
+      run: npm run format:check:files -- {staged_files}
