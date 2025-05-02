@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { AvailableModel as AvailableGeminiModel } from '../../hooks/useGemini' // ★ useGemini から型をインポート
 import { AvailableOpenAIModel } from '../../hooks/useOpenAI' // OpenAIの型をインポート
-import { HistoryEntry, GenerationResult } from '../../types' // ★ GenerationResult もインポート
 
 // ★ AiModel enum は削除
 
@@ -68,43 +67,6 @@ const AiModelSelector: React.FC<AiModelSelectorProps> = ({
   const hasError = errorOpenAI || errorGemini // エラー状態
   const hasModels =
     availableOpenAIModels.length > 0 || availableGeminiModels.length > 0
-
-  // 選択中のモデル名を取得する関数
-  const getSelectedModelNames = () => {
-    if (selectedModels.length === 0) return '選択なし'
-
-    return selectedModels
-      .map((modelId) => {
-        const prefix = modelId.startsWith('openai:') ? 'openai:' : 'gemini:'
-        const rawId = modelId.replace(/^(openai:|gemini:)/, '')
-
-        if (prefix === 'openai:') {
-          return rawId
-        } else {
-          const modelInfo = availableGeminiModels.find((m) => m.name === rawId)
-          return modelInfo ? modelInfo.displayName : rawId
-        }
-      })
-      .join(', ')
-  }
-
-  // 選択中のモデル数と種類（OpenAI/Gemini）の情報を作成
-  const getSelectedModelsSummary = () => {
-    if (selectedModels.length === 0) return '選択なし'
-
-    const openaiCount = selectedModels.filter((id) =>
-      id.startsWith('openai:')
-    ).length
-    const geminiCount = selectedModels.filter((id) =>
-      id.startsWith('gemini:')
-    ).length
-
-    const parts = []
-    if (openaiCount > 0) parts.push(`OpenAI: ${openaiCount}`)
-    if (geminiCount > 0) parts.push(`Gemini: ${geminiCount}`)
-
-    return parts.join(', ')
-  }
 
   // モデルをタグ形式でレンダリングするヘルパー関数
   const renderModelTags = (
