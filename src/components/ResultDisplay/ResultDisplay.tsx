@@ -27,17 +27,19 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
     }
   }, [])
 
-  const hasResults =
-    results.length > 0 && results.some((r) => r.generatedAltText)
+  // hasResults は結果リストの内部での表示制御にのみ使用
+  // const hasResults =
+  //   results.length > 0 && results.some((r) => r.generatedAltText)
 
-  // 結果がロード中もしくはまだ表示されていない場合に表示するローディングインジケーター
-  const shouldShowLoading = isLoading || (results.length > 0 && !hasResults)
+  // ローディングインジケーターの表示条件をシンプルに isLoading のみとする
+  // const shouldShowLoading = isLoading || (results.length > 0 && !hasResults)
 
   return (
     <div className="mt-6">
       <h3 className="text-md font-semibold text-gray-700 mb-2">生成結果</h3>
-      <div className="border rounded-md bg-gray-50 overflow-hidden">
-        {shouldShowLoading && (
+      <div className="border rounded-md bg-gray-50 overflow-hidden min-h-[100px] flex flex-col justify-center">
+        {/* ローディング表示: isLoading が true の時のみ */}
+        {isLoading && (
           <div className="flex items-center justify-center h-[100px] bg-white/50">
             <svg
               className="animate-spin h-8 w-8 text-blue-600"
@@ -62,7 +64,8 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
           </div>
         )}
 
-        {!shouldShowLoading && !hasResults && (
+        {/* 「まだ結果がありません」表示: isLoading が false かつ results が空の時のみ */}
+        {!isLoading && results.length === 0 && (
           <div className="p-4">
             <p className="text-sm text-gray-500 text-center py-6">
               まだ結果がありません。
@@ -70,6 +73,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
           </div>
         )}
 
+        {/* 結果リスト表示: isLoading が false かつ results に要素がある時 */}
         {!isLoading && results.length > 0 && (
           <div className="divide-y divide-gray-200">
             {results.map((result, index) => {
@@ -78,7 +82,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
                 ''
               )
               return (
-                <div key={`${result.model}-${index}`} className="p-4">
+                <div key={`${result.model}-${index}`} className="p-4 bg-white">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-medium text-gray-700">
                       {displayModelName}
@@ -108,7 +112,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
                       {result.generatedAltText}
                     </pre>
                   ) : (
-                    <p className="text-sm text-gray-500 italic">結果なし</p>
+                    // 結果が null だが表示すべき場合 (isLoading=false, results.length > 0)
+                    <p className="text-sm text-gray-500 italic p-3 bg-white rounded border border-gray-200">
+                      結果なし
+                    </p>
                   )}
                 </div>
               )
