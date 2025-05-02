@@ -56,6 +56,7 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [listModelsError, setListModelsError] = useState<Error | null>(null)
+  const [isLoadingModels, setIsLoadingModels] = useState(false)
 
   // モデルごとの追加情報 (例)
   // これはAPIレスポンスの 'name' (models/...) に基づいてキーを設定
@@ -97,10 +98,13 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
   const listAvailableModels = useCallback(async (): Promise<
     AvailableModel[]
   > => {
+    setIsLoadingModels(true)
     setListModelsError(null)
+
     if (!apiKey) {
       const err = new Error('API Key is required to list models via REST API.')
       setListModelsError(err)
+      setIsLoadingModels(false)
       return []
     }
 
@@ -149,7 +153,7 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
       )
 
       // generateContent で使うモデル名は 'models/' プレフィックスを削除し、メタデータを付与
-      return sortedUniqueModels.map((m: ApiModelInfo) => {
+      const availableModels = sortedUniqueModels.map((m: ApiModelInfo) => {
         // ★ sortedUniqueModels を使う
         const metadata = modelMetadata[m.name] ?? {} // APIレスポンスの name でメタデータを検索
         // プレビュー/実験フラグ判定 (メタデータ優先、なければ名前に含むか)
@@ -174,11 +178,15 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
           // isHighCost: isCostly, // 削除
         }
       })
+
+      setIsLoadingModels(false)
+      return availableModels
     } catch (err) {
       console.error('Error listing Gemini models via REST:', err)
       const fetchError =
         err instanceof Error ? err : new Error('Unknown error listing models')
       setListModelsError(fetchError)
+      setIsLoadingModels(false)
       return []
     }
   }, [apiKey])
@@ -252,10 +260,11 @@ const useGemini = ({ apiKey }: UseGeminiProps) => {
 
   return {
     generateAltText,
-    isLoading,
-    error,
     listAvailableModels,
-    listModelsError,
+    isLoading: isLoading,
+    error: error,
+    isLoadingModels: isLoadingModels,
+    listModelsError: listModelsError,
   }
 }
 
