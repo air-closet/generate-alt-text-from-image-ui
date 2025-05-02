@@ -10,6 +10,9 @@ import useGemini, {
   AvailableModel as AvailableGeminiModel,
 } from './hooks/useGemini'
 import './App.css'
+import { HistoryEntry, GenerationResult } from './types'
+import HistoryDisplay from './components/HistoryDisplay/HistoryDisplay'
+import HistoryDetailModal from './components/HistoryDetailModal/HistoryDetailModal'
 
 // モデル選択肢の値のプレフィックス
 const OPENAI_PREFIX = 'openai:'
@@ -36,13 +39,24 @@ function App() {
   const [availableOpenAIModels, setAvailableOpenAIModels] = useState<
     AvailableOpenAIModel[]
   >([])
-  const [selectedModel, setSelectedModel] = useState<string>('')
+  const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [allowAdvancedModels, setAllowAdvancedModels] = useState(false)
 
   // 結果/状態 state
   const [generatedAltText, setGeneratedAltText] = useState<string | null>(null)
+  const [generationResults, setGenerationResults] = useState<
+    GenerationResult[]
+  >([])
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
+
+  // ★ 履歴 state を追加
+  const [history, setHistory] = useState<HistoryEntry[]>([])
+
+  // ★ モーダル管理 state を追加
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedHistoryEntry, setSelectedHistoryEntry] =
+    useState<HistoryEntry | null>(null)
 
   // ★ カスタムフックの準備 (変更あり)
   const {
@@ -62,27 +76,52 @@ function App() {
     listModelsError: listGeminiModelsError, // ★ フックから直接使う
   } = useGemini({ apiKey: geminiApiKey })
 
-  // ★ モデルリスト取得状態の統合 -> 各フックから直接 isLoading*Models を使うので不要
-  /*
+  // ★ localStorage から履歴を読み込む useEffect
   useEffect(() => {
-    setIsLoadingModels(isLoadingGeminiModels || isLoadingOpenAIModels)
-  }, [isLoadingGeminiModels, isLoadingOpenAIModels])
-  */
+    try {
+      const savedHistory = localStorage.getItem('altGenHistory')
+      if (savedHistory) {
+        const parsedHistory = JSON.parse(savedHistory) as HistoryEntry[]
+        // 簡単なバリデーション (配列かどうか、id があるかなど)
+        if (
+          Array.isArray(parsedHistory) &&
+          parsedHistory.every((item) => item.id)
+        ) {
+          setHistory(parsedHistory)
+          console.log(
+            'Loaded history from localStorage:',
+            parsedHistory.length,
+            'items'
+          )
+        } else {
+          console.warn('Invalid history data found in localStorage. Ignoring.')
+          localStorage.removeItem('altGenHistory') // 不正なデータは削除
+        }
+      } else {
+        console.log('No history found in localStorage.')
+      }
+    } catch (error) {
+      console.error('Failed to load or parse history from localStorage:', error)
+      localStorage.removeItem('altGenHistory') // エラー時も削除
+    }
+  }, []) // 初回マウント時のみ実行
 
-  // ★ モデル取得エラーの統合 -> 各フックから直接 list*ModelsError を使うので不要
-  /*
+  // ★ 履歴が更新されたら localStorage に保存する useEffect
   useEffect(() => {
-    let combinedError: string | null = null
-    if (listGeminiModelsError) {
-      combinedError = `Geminiモデル取得エラー: ${listGeminiModelsError.message}`
+    // 初回読み込み時は保存しない (無限ループ防止)
+    if (history.length > 0) {
+      try {
+        localStorage.setItem('altGenHistory', JSON.stringify(history))
+        console.log('Saved history to localStorage:', history.length, 'items')
+      } catch (error) {
+        console.error('Failed to save history to localStorage:', error)
+        // 容量超過などのエラー考慮
+      }
     }
-    if (listOpenAIModelsError) {
-      if (combinedError) combinedError += '; '
-      combinedError += `OpenAIモデル取得エラー: ${listOpenAIModelsError.message}`
-    }
-    setModelFetchError(combinedError)
-  }, [listGeminiModelsError, listOpenAIModelsError])
-  */
+    // history が空になった時の削除処理は初回ロード時に不正データを削除しているので、
+    // ここでは単純に history が空なら何もしない or 空配列を保存する、で良いかも。
+    // もし明確に「最後の要素を消したらストレージもクリア」したいなら別途ロジック追加。
+  }, [history])
 
   // ★ Gemini モデルリスト取得 useEffect (修正)
   useEffect(() => {
@@ -94,13 +133,13 @@ function App() {
           setAvailableGeminiModels(models)
           // Geminiが取得でき、かつ現在何も選択されていない場合、デフォルトを設定
           if (models.length > 0) {
-            setSelectedModel((prevSelectedModel) => {
-              if (!prevSelectedModel) {
+            setSelectedModels((prevSelectedModels) => {
+              if (prevSelectedModels.length === 0) {
                 const safeModel =
                   models.find((m) => !m.isExperimentalOrPreview) ?? models[0]
-                return GEMINI_PREFIX + safeModel.name
+                return [GEMINI_PREFIX + safeModel.name]
               } else {
-                return prevSelectedModel // 既に選択があれば維持
+                return prevSelectedModels // 既に選択があれば維持
               }
             })
           }
@@ -108,11 +147,11 @@ function App() {
       } else {
         if (isMounted) {
           setAvailableGeminiModels([])
-          setSelectedModel((prevSelectedModel) => {
-            if (prevSelectedModel.startsWith(GEMINI_PREFIX)) {
-              return '' // 単純にリセットする
+          setSelectedModels((prevSelectedModels) => {
+            if (prevSelectedModels.length > 0) {
+              return [] // 単純にリセットする
             }
-            return prevSelectedModel
+            return prevSelectedModels
           })
         }
       }
@@ -133,13 +172,13 @@ function App() {
           setAvailableOpenAIModels(models)
           // OpenAIが取得でき、かつ現在何も選択されていない場合、デフォルトを設定
           if (models.length > 0) {
-            setSelectedModel((prevSelectedModel) => {
-              if (!prevSelectedModel) {
+            setSelectedModels((prevSelectedModels) => {
+              if (prevSelectedModels.length === 0) {
                 const defaultModel =
                   models.find((m) => m.id === 'gpt-4o') ?? models[0]
-                return OPENAI_PREFIX + defaultModel.id
+                return [OPENAI_PREFIX + defaultModel.id]
               } else {
-                return prevSelectedModel // 既に選択があれば維持
+                return prevSelectedModels // 既に選択があれば維持
               }
             })
           }
@@ -148,16 +187,11 @@ function App() {
         if (isMounted) {
           setAvailableOpenAIModels([])
           // もし選択中のモデルがOpenAIだったらリセット (Geminiがあればそれに切り替え)
-          setSelectedModel((prevSelectedModel) => {
-            if (prevSelectedModel.startsWith(OPENAI_PREFIX)) {
-              // ★ Geminiリストに依存しないように修正
-              // const safeGemini =
-              //   availableGeminiModels.find((m) => !m.isExperimentalOrPreview) ??
-              //   availableGeminiModels[0]
-              // return safeGemini ? GEMINI_PREFIX + safeGemini.name : ''
-              return '' // 単純にリセットする
+          setSelectedModels((prevSelectedModels) => {
+            if (prevSelectedModels.length > 0) {
+              return [] // 単純にリセットする
             }
-            return prevSelectedModel
+            return prevSelectedModels
           })
         }
       }
@@ -170,119 +204,147 @@ function App() {
 
   // ★ 生成APIのローディング/エラー状態監視 (修正)
   useEffect(() => {
-    if (selectedModel.startsWith(OPENAI_PREFIX)) {
+    if (selectedModels.length > 0) {
       setIsLoading(isLoadingOpenAI) // API生成時のローディング
       setApiError(errorOpenAI ? `OpenAI Error: ${errorOpenAI.message}` : null)
-    } else if (selectedModel.startsWith(GEMINI_PREFIX)) {
-      setIsLoading(isLoadingGemini) // API生成時のローディング
-      setApiError(errorGemini ? `Gemini Error: ${errorGemini.message}` : null)
-    } else {
+    } else if (selectedModels.length === 0) {
       setIsLoading(false)
       // APIキー未入力などでモデルが選択できない場合のエラーは apiError には設定しない
       // setApiError(null) // 生成ボタン押下時にリセットするのでここでは不要
     }
-  }, [
-    selectedModel,
-    isLoadingOpenAI,
-    errorOpenAI,
-    isLoadingGemini,
-    errorGemini,
-  ])
+  }, [selectedModels, isLoadingOpenAI, errorOpenAI])
 
   const handleImageUpload = (file: File, dataUrl: string) => {
     setUploadedFile(file)
     setImageDataUrl(dataUrl)
     setGeneratedAltText(null)
+    setGenerationResults([])
     setApiError(null)
     console.log('Uploaded file:', file.name)
   }
 
-  // ★ handleGenerate 関数 (修正)
+  // ★ handleGenerate 関数 (複数モデル実行 & 案B履歴保存に対応)
   const handleGenerate = async () => {
     if (!uploadedFile || !imageDataUrl) {
       setApiError('画像をアップロードしてください。')
       return
     }
-    if (!selectedModel) {
-      setApiError('モデルを選択してください。')
+    if (selectedModels.length === 0) {
+      setApiError('モデルを1つ以上選択してください。')
       return
     }
 
     setApiError(null)
-    setGeneratedAltText(null)
+    setGenerationResults([])
+    setIsLoading(true)
 
-    try {
-      let altText: string | null = null
-
-      if (selectedModel.startsWith(OPENAI_PREFIX)) {
-        if (!openaiApiKey) {
-          setApiError('OpenAI API キーを入力してください。')
-          return
-        }
-        const modelId = selectedModel.substring(OPENAI_PREFIX.length)
-        altText = await generateWithOpenAI({
-          prompt,
-          imageDataUrl,
-          model: modelId,
-        })
-      } else if (selectedModel.startsWith(GEMINI_PREFIX)) {
-        if (!geminiApiKey) {
-          setApiError('Gemini API キーを入力してください。')
-          return
-        }
-        const modelName = selectedModel.substring(GEMINI_PREFIX.length)
-
-        // ★ ここで選択中のGeminiモデル情報を再取得 (APIキー変更などでリストが変わる可能性があるため)
-        const currentGeminiModels = await listAvailableGeminiModels() // 再取得
-        const selectedGeminiInfo = currentGeminiModels.find(
-          (m) => m.name === modelName
-        )
-
-        // プレビュー/実験的モデルのチェック
-        if (
-          selectedGeminiInfo && // モデル情報が見つかった場合のみチェック
-          selectedGeminiInfo.isExperimentalOrPreview &&
-          !allowAdvancedModels
-        ) {
-          setApiError(
-            '許可されていない高度なモデルが選択されています。チェックボックスをオンにしてください。'
-          )
-          return
-        }
-        // ★ 再取得したリストに選択中のモデルが存在しない場合のエラーハンドリングを追加
-        if (!selectedGeminiInfo && currentGeminiModels.length > 0) {
-          setApiError(
-            '選択中のGeminiモデルが見つかりませんでした。モデルを再選択してください。'
-          )
-          return
-        }
-
-        altText = await generateWithGemini({
-          prompt,
-          imageDataUrl,
-          model: modelName,
-        })
-      } else {
-        setApiError('有効なモデルが選択されていません。')
-        return
+    const generationPromises = selectedModels.map(async (modelIdentifier) => {
+      let result: GenerationResult = {
+        model: modelIdentifier,
+        generatedAltText: null,
+        error: null,
       }
 
-      if (altText) {
-        setGeneratedAltText(altText)
-        // TODO: 履歴保存処理
-      } else {
-        // エラーは useEffect で監視しているので、ここでは特に何もしない
-        // if (!apiError) {
-        //   setApiError('AIからの応答がありませんでした。')
-        // }
+      try {
+        if (modelIdentifier.startsWith(OPENAI_PREFIX)) {
+          if (!openaiApiKey) throw new Error('OpenAI API Key is not set.')
+          const modelId = modelIdentifier.substring(OPENAI_PREFIX.length)
+          result.generatedAltText = await generateWithOpenAI({
+            prompt,
+            imageDataUrl,
+            model: modelId,
+          })
+          if (!result.generatedAltText)
+            throw new Error('OpenAIからの応答が空でした。')
+        } else if (modelIdentifier.startsWith(GEMINI_PREFIX)) {
+          if (!geminiApiKey) throw new Error('Gemini API Key is not set.')
+          const modelName = modelIdentifier.substring(GEMINI_PREFIX.length)
+
+          // ★ 高度なモデルのチェック (リスト再取得は cost 的に避け、state を信頼する)
+          const selectedGeminiInfo = availableGeminiModels.find(
+            (m) => m.name === modelName
+          )
+          if (
+            selectedGeminiInfo?.isExperimentalOrPreview &&
+            !allowAdvancedModels
+          ) {
+            throw new Error('許可されていない高度なGeminiモデルです。')
+          }
+          // 注意: APIキー変更後に古いモデルが選択されている可能性は残る
+
+          result.generatedAltText = await generateWithGemini({
+            prompt,
+            imageDataUrl,
+            model: modelName,
+          })
+          if (!result.generatedAltText)
+            throw new Error('Geminiからの応答が空でした。')
+        } else {
+          throw new Error(`不明なモデルプレフィックス: ${modelIdentifier}`)
+        }
+      } catch (err) {
+        console.error(`Error generating with ${modelIdentifier}:`, err)
+        result.error = err instanceof Error ? err.message : 'Unknown error'
       }
-    } catch (err) {
-      console.error('Error in handleGenerate:', err)
-      // useEffect でのエラー設定を待つため、ここでは設定しない方が良い場合がある
-      // if (!apiError) {
-      //  setApiError('生成処理中に予期せぬエラーが発生しました。')
-      // }
+      return result
+    })
+
+    // ★ 全てのモデルの処理完了を待つ (失敗しても続ける)
+    const results = await Promise.allSettled(generationPromises)
+
+    // ★ 結果 state を更新 (後で ResultDisplay 用に別途作成)
+    const finalResults: GenerationResult[] = results.map((outcome, index) => {
+      if (outcome.status === 'fulfilled') {
+        return outcome.value
+      } else {
+        // Promise が reject された場合 (通常は内部の catch で処理されるはずだが念のため)
+        return {
+          model: selectedModels[index],
+          generatedAltText: null,
+          error:
+            outcome.reason instanceof Error
+              ? outcome.reason.message
+              : 'Unknown settlement error',
+        }
+      }
+    })
+    console.log('Generation Results:', finalResults)
+    setGenerationResults(finalResults)
+
+    // ★ 案B の履歴エントリを作成
+    const newHistoryEntry: HistoryEntry = {
+      id: `hist-${Date.now()}`,
+      timestamp: Date.now(),
+      imageDataUrl: imageDataUrl,
+      prompt: prompt,
+      results: finalResults, // ★ 実行した全モデルの結果を格納
     }
+
+    // 履歴を更新 (最新が先頭に来るように)
+    setHistory((prevHistory) => [newHistoryEntry, ...prevHistory])
+
+    setIsLoading(false)
+  }
+
+  // ★ 履歴削除ハンドラを追加
+  const handleDeleteHistoryItem = (idToDelete: string) => {
+    setHistory((prevHistory) =>
+      prevHistory.filter((entry) => entry.id !== idToDelete)
+    )
+    console.log('Deleted history item:', idToDelete)
+    // localStorageへの反映は history state の useEffect が自動で行う
+  }
+
+  // ★ モーダルを開くハンドラ
+  const handleShowHistoryDetails = (entry: HistoryEntry) => {
+    setSelectedHistoryEntry(entry)
+    setIsModalOpen(true)
+  }
+
+  // ★ モーダルを閉じるハンドラ
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedHistoryEntry(null) // 閉じる時に選択をリセット
   }
 
   // ★ AiModelSelectorに渡すエラー文字列を作成するヘルパー
@@ -291,66 +353,91 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-6">
+      <div className="max-w-screen-2xl mx-auto bg-white shadow-lg rounded-lg p-6">
         <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">
           画像Altテキスト生成UI
         </h1>
 
-        {/* モデル取得エラー表示は AiModelSelector 内で行うので削除 */}
-        {/* {modelFetchError && (
-          <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
-            <p>{modelFetchError}</p>
-          </div>
-        )} */}
+        {/* API生成エラー表示 (カラムの外に配置) */}
         {apiError && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             <p>{apiError}</p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <ApiKeyInput
-            apiKey={openaiApiKey}
-            setApiKey={setOpenaiApiKey}
-            saveApiKey={saveOpenaiKey}
-            setSaveApiKey={setSaveOpenaiKey}
-            serviceName="OpenAI"
-          />
-          <ApiKeyInput
-            apiKey={geminiApiKey}
-            setApiKey={setGeminiApiKey}
-            saveApiKey={saveGeminiKey}
-            setSaveApiKey={setSaveGeminiKey}
-            serviceName="Gemini"
-          />
-        </div>
+        {/* ★ 2カラムレイアウト開始 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* ★ 左カラム: 生成UI */}
+          <div>
+            {/* APIキー入力 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {' '}
+              {/* APIキーは横並び */}
+              <ApiKeyInput
+                apiKey={openaiApiKey}
+                setApiKey={setOpenaiApiKey}
+                saveApiKey={saveOpenaiKey}
+                setSaveApiKey={setSaveOpenaiKey}
+                serviceName="OpenAI"
+              />
+              <ApiKeyInput
+                apiKey={geminiApiKey}
+                setApiKey={setGeminiApiKey}
+                saveApiKey={saveGeminiKey}
+                setSaveApiKey={setSaveGeminiKey}
+                serviceName="Gemini"
+              />
+            </div>
 
-        <ImageUploader onImageUpload={handleImageUpload} />
+            {/* 画像アップローダー */}
+            <ImageUploader onImageUpload={handleImageUpload} />
 
-        <div className="mt-6">
-          {' '}
-          {/* マージントップを追加 */}
-          <AiModelSelector
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-            availableGeminiModels={availableGeminiModels}
-            availableOpenAIModels={availableOpenAIModels}
-            isLoadingOpenAI={isLoadingOpenAIModels}
-            isLoadingGemini={isLoadingGeminiModels}
-            errorOpenAI={getModelErrorString(listOpenAIModelsError)}
-            errorGemini={getModelErrorString(listGeminiModelsError)}
-            allowAdvancedModels={allowAdvancedModels}
-            setAllowAdvancedModels={setAllowAdvancedModels}
-          />
-          <PromptInput prompt={prompt} setPrompt={setPrompt} />
-          <GenerateButton
-            onClick={handleGenerate}
-            isLoading={isLoading}
-            disabled={!selectedModel || !imageDataUrl || isLoading}
-          />
-          <ResultDisplay result={generatedAltText} isLoading={isLoading} />
+            {/* 設定と結果表示 */}
+            <div className="mt-6">
+              <AiModelSelector
+                selectedModels={selectedModels}
+                setSelectedModels={setSelectedModels}
+                availableGeminiModels={availableGeminiModels}
+                availableOpenAIModels={availableOpenAIModels}
+                isLoadingOpenAI={isLoadingOpenAIModels}
+                isLoadingGemini={isLoadingGeminiModels}
+                errorOpenAI={getModelErrorString(listOpenAIModelsError)}
+                errorGemini={getModelErrorString(listGeminiModelsError)}
+                allowAdvancedModels={allowAdvancedModels}
+                setAllowAdvancedModels={setAllowAdvancedModels}
+              />
+              <PromptInput prompt={prompt} setPrompt={setPrompt} />
+              <GenerateButton
+                onClick={handleGenerate}
+                isLoading={isLoading}
+                disabled={
+                  selectedModels.length === 0 || !imageDataUrl || isLoading
+                }
+              />
+              <ResultDisplay
+                results={generationResults}
+                isLoading={isLoading}
+              />
+            </div>
+          </div>
+
+          {/* ★ 右カラム: 履歴表示 */}
+          <div>
+            <HistoryDisplay
+              history={history}
+              onDeleteHistoryItem={handleDeleteHistoryItem}
+              onShowHistoryDetails={handleShowHistoryDetails}
+            />
+          </div>
         </div>
       </div>
+
+      {/* ★ モーダルコンポーネントをレンダリング */}
+      <HistoryDetailModal
+        isOpen={isModalOpen}
+        onRequestClose={handleCloseModal}
+        entry={selectedHistoryEntry}
+      />
     </div>
   )
 }
